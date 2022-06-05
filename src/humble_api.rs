@@ -36,46 +36,66 @@ impl Product {
 
 #[derive(Debug, Deserialize)]
 pub struct ProductEntry {
-    machine_name: String,
-    human_name: String,
+    pub machine_name: String,
+    pub human_name: String,
+
     #[serde(rename = "url")]
-    product_details_url: String,
-    downloads: Vec<DownloadEntry>,
+    pub product_details_url: String,
+
+    pub downloads: Vec<DownloadEntry>,
 }
 
 impl ProductEntry {
-    fn total_size(&self) -> u64 {
+    pub fn total_size(&self) -> u64 {
         self.downloads.iter().map(|e| e.total_size()).sum()
+    }
+
+    pub fn formats(&self) -> String {
+        self.downloads
+            .iter()
+            .map(|d| d.formats())
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 }
 
 #[derive(Debug, Deserialize)]
-struct DownloadEntry {
+pub struct DownloadEntry {
     #[serde(rename = "download_struct")]
-    sub_items: Vec<DownloadEntryItem>,
+    pub sub_items: Vec<DownloadEntryItem>,
 }
 
 impl DownloadEntry {
     pub fn total_size(&self) -> u64 {
         self.sub_items.iter().map(|e| e.file_size).sum()
     }
+
+    pub fn formats(&self) -> String {
+        self.sub_items
+            .iter()
+            .map(|s| s.item_type.clone())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
 }
 
 #[derive(Debug, Deserialize)]
-struct DownloadEntryItem {
-    md5: String,
+pub struct DownloadEntryItem {
+    pub md5: String,
+
     #[serde(rename = "name")]
-    item_type: String,
-    file_size: u64,
+    pub item_type: String,
+
+    pub file_size: u64,
 
     #[serde(rename = "url")]
-    urls: DownloadUrl,
+    pub urls: DownloadUrl,
 }
 
 #[derive(Debug, Deserialize)]
-struct DownloadUrl {
-    web: String,
-    bittorrent: String,
+pub struct DownloadUrl {
+    pub web: String,
+    pub bittorrent: String,
 }
 
 #[derive(Debug, Deserialize)]

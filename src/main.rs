@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use clap::{arg, command, Command};
+use humble_cli::humanize_bytes;
 use tabled::{object::Columns, Alignment, Modify, Style};
 
 fn main() -> Result<(), anyhow::Error> {
@@ -9,15 +10,17 @@ fn main() -> Result<(), anyhow::Error> {
 
     let session_key = session_key.trim_end();
 
-    let list_subcommand = Command::new("list")
-        .about("List purchases")
-        .arg(arg!([NAME]));
+    let list_subcommand = Command::new("list").about("List all purchases");
+
+    let details_subcommand = Command::new("details")
+        .about("Print details of a certain product")
+        .arg(arg!([KEY]).required(true));
 
     let download_subcommand = Command::new("download")
         .about("Download all items in a product")
-        .arg(arg!([KEY]));
+        .arg(arg!([KEY]).required(true));
 
-    let sub_commands = vec![list_subcommand, download_subcommand];
+    let sub_commands = vec![list_subcommand, details_subcommand, download_subcommand];
 
     let matches = command!()
         .propagate_version(true)
@@ -27,7 +30,10 @@ fn main() -> Result<(), anyhow::Error> {
         .get_matches();
 
     match matches.subcommand() {
-        Some(("list", _sub_matches)) => list_products(&session_key),
+        Some(("list", _)) => list_products(&session_key),
+        Some(("details", sub_matches)) => {
+            show_product_details(&session_key, sub_matches.value_of("KEY").unwrap())
+        }
         _ => {}
     }
 
@@ -43,7 +49,7 @@ fn list_products(session_key: &str) {
         builder = builder.add_record([
             &p.gamekey,
             &p.details.human_name,
-            &bytesize::to_string(p.total_size(), true),
+            &humanize_bytes(p.total_size()),
         ]);
     }
 
@@ -52,5 +58,35 @@ fn list_products(session_key: &str) {
         .with(Style::psql())
         .with(Modify::new(Columns::single(1)).with(Alignment::left()))
         .with(Modify::new(Columns::single(2)).with(Alignment::right()));
+    println!("{table}");
+}
+
+fn show_product_details(session_key: &str, product_key: &str) {
+    let api = humble_cli::HumbleApi::new(session_key);
+    let product = humble_cli::run_future(api.read_product(product_key)).unwrap();
+
+    println!("{}", product.details.human_name);
+    println!("Total size: {}", humanize_bytes(product.total_size()));
+    println!("");
+
+    // Items in this product
+    let mut builder =
+        tabled::builder::Builder::default().set_columns(["", "Name", "Format", "Total Size"]);
+
+    for (idx, entry) in product.entries.iter().enumerate() {
+        builder = builder.add_record([
+            &idx.to_string(),
+            &entry.human_name,
+            &entry.formats(),
+            &humanize_bytes(entry.total_size()),
+        ]);
+    }
+    let table = builder
+        .build()
+        .with(Style::psql())
+        .with(Modify::new(Columns::single(0)).with(Alignment::right()))
+        .with(Modify::new(Columns::single(1)).with(Alignment::left()))
+        .with(Modify::new(Columns::single(2)).with(Alignment::left()))
+        .with(Modify::new(Columns::single(3)).with(Alignment::right()));
     println!("{table}");
 }
