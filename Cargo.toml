@@ -13,9 +13,11 @@ name = "humble-cli"
 
 [dependencies]
 anyhow = "1.0"
+bytesize = "1.1.0"
 clap = { version = "3.1", features = ["cargo", "derive"] }
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json", "blocking"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+tabled = "0.7.0"
 thiserror = "1.0"
 tokio = { version = "1.18", features = ["rt-multi-thread", "macros"] }

@@ -1,1 +1,6 @@
 /target
+
+# Temporary files used during the research and development
+session.key
+TODO.txt
+sample.json
