@@ -1,3 +1,4 @@
+mod download;
 mod humble_api;
 mod util;
 

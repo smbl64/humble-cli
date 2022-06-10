@@ -42,7 +42,7 @@ fn main() -> Result<(), anyhow::Error> {
 
 fn list_products(session_key: &str) {
     let api = humble_cli::HumbleApi::new(session_key);
-    let products = humble_cli::run_future(api.list_products()).unwrap();
+    let products = api.list_products().unwrap();
     println!("Done: {} products", products.len());
     let mut builder = tabled::builder::Builder::default().set_columns(["Key", "Name", "Size"]);
     for p in products {
@@ -63,8 +63,9 @@ fn list_products(session_key: &str) {
 
 fn show_product_details(session_key: &str, product_key: &str) {
     let api = humble_cli::HumbleApi::new(session_key);
-    let product = humble_cli::run_future(api.read_product(product_key)).unwrap();
+    let product = api.read_product(product_key).unwrap();
 
+    println!("");
     println!("{}", product.details.human_name);
     println!("Total size: {}", humanize_bytes(product.total_size()));
     println!("");

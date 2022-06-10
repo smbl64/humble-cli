@@ -1,4 +1,4 @@
-use reqwest::Client;
+use reqwest::blocking::Client;
 use serde::Deserialize;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -114,7 +114,7 @@ impl HumbleApi {
         }
     }
 
-    pub async fn list_products(&self) -> Result<Vec<Product>, anyhow::Error> {
+    pub fn list_products(&self) -> Result<Vec<Product>, anyhow::Error> {
         let client = Client::new();
 
         // First: get the game keys
@@ -125,14 +125,13 @@ impl HumbleApi {
                 "cookie".to_owned(),
                 format!("_simpleauth_sess={}", self.auth_key),
             )
-            .send()
-            .await?;
+            .send()?;
 
         if !res.status().is_success() {
             return Err(ApiError::BadHttpStatus(res.status().as_u16()).into());
         }
 
-        let game_keys = res.json::<Vec<GameKey>>().await?;
+        let game_keys = res.json::<Vec<GameKey>>()?;
 
         // Second: get details for those game keys
         let query_params: Vec<_> = game_keys
@@ -148,17 +147,16 @@ impl HumbleApi {
                 format!("_simpleauth_sess={}", self.auth_key),
             )
             .query(&query_params)
-            .send()
-            .await?;
+            .send()?;
 
         if !res.status().is_success() {
             return Err(ApiError::BadHttpStatus(res.status().as_u16()).into());
         }
-        let product_map = res.json::<ProductMap>().await?;
+        let product_map = res.json::<ProductMap>()?;
         Ok(product_map.into_values().collect())
     }
 
-    pub async fn read_product(&self, product_key: &str) -> Result<Product, anyhow::Error> {
+    pub fn read_product(&self, product_key: &str) -> Result<Product, anyhow::Error> {
         let url = format!("https://www.humblebundle.com/api/v1/order/{}", product_key);
 
         let client = Client::new();
@@ -169,14 +167,12 @@ impl HumbleApi {
                 "cookie".to_owned(),
                 format!("_simpleauth_sess={}", self.auth_key),
             )
-            .send()
-            .await?;
+            .send()?;
 
         if !res.status().is_success() {
             //eprintln!("Request failed: {}", res.status().as_u16());
             return Err(ApiError::BadHttpStatus(res.status().as_u16()).into());
         }
-        let product = res.json::<Product>().await?;
-        Ok(product)
+        res.json::<Product>().map_err(|e| e.into())
     }
 }
