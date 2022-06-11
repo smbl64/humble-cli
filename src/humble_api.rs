@@ -5,8 +5,14 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ApiError {
-    #[error("bad status code: {0}")]
+    #[error("Request failed: {0}")]
     BadHttpStatus(u16),
+
+    #[error(transparent)]
+    NetworkError(reqwest::Error),
+
+    #[error("Cannot parse the response")]
+    DeserializeFailed,
 }
 
 type ProductMap = HashMap<String, Product>;
@@ -88,8 +94,7 @@ pub struct DownloadEntryItem {
 
     pub file_size: u64,
 
-    #[serde(rename = "url")]
-    pub urls: DownloadUrl,
+    pub url: DownloadUrl,
 }
 
 #[derive(Debug, Deserialize)]
@@ -156,7 +161,7 @@ impl HumbleApi {
         Ok(product_map.into_values().collect())
     }
 
-    pub fn read_product(&self, product_key: &str) -> Result<Product, anyhow::Error> {
+    pub fn read_product(&self, product_key: &str) -> Result<Product, ApiError> {
         let url = format!("https://www.humblebundle.com/api/v1/order/{}", product_key);
 
         let client = Client::new();
@@ -167,12 +172,13 @@ impl HumbleApi {
                 "cookie".to_owned(),
                 format!("_simpleauth_sess={}", self.auth_key),
             )
-            .send()?;
+            .send()
+            .map_err(|e| ApiError::NetworkError(e))?;
 
         if !res.status().is_success() {
-            //eprintln!("Request failed: {}", res.status().as_u16());
             return Err(ApiError::BadHttpStatus(res.status().as_u16()).into());
         }
-        res.json::<Product>().map_err(|e| e.into())
+        res.json::<Product>()
+            .map_err(|e| ApiError::DeserializeFailed)
     }
 }
