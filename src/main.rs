@@ -1,5 +1,5 @@
 use anyhow::Context;
-use clap::{arg, command, Command};
+use clap::Command;
 use humble_cli::humanize_bytes;
 use humble_cli::run_future;
 use humble_cli::ApiError;
@@ -8,6 +8,7 @@ use std::path;
 use tabled::{object::Columns, Alignment, Modify, Style};
 
 fn main() {
+    better_panic::install();
     match run() {
         Err(e) => {
             eprintln!("Error: {:#}", e);
@@ -27,15 +28,24 @@ fn run() -> Result<(), anyhow::Error> {
 
     let details_subcommand = Command::new("details")
         .about("Print details of a certain product")
-        .arg(arg!([KEY]).required(true));
+        .arg(
+            clap::Arg::new("KEY")
+                .required(true)
+                .help("The product to show the details of"),
+        );
 
     let download_subcommand = Command::new("download")
         .about("Download all items in a product")
-        .arg(arg!([KEY]).required(true));
+        .arg(
+            clap::Arg::new("KEY")
+                .required(true)
+                .help("The product which must be downloaded"),
+        );
 
     let sub_commands = vec![list_subcommand, details_subcommand, download_subcommand];
 
     let matches = clap::Command::new(clap::crate_name!())
+        .about("The missing Humble Bundle CLI")
         .version(clap::crate_version!())
         .propagate_version(true)
         .subcommand_required(true)

@@ -13,6 +13,7 @@ name = "humble-cli"
 
 [dependencies]
 anyhow = "1.0"
+better-panic = "0.3.0"
 bytesize = "1.1.0"
 clap = { version = "3.1", features = ["cargo", "derive"] }
 futures-util = "0.3.21"
