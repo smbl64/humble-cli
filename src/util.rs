@@ -46,8 +46,8 @@ pub fn extract_filename_from_url(url: &str) -> Option<String> {
 #[test]
 fn test_remove_invalid_chars() {
     assert_eq!(
-        replace_invalid_chars_in_filename("Humble Bundle: Book = Nice"),
-        "Humble Bundle_ Book _ Nice".to_string()
+        replace_invalid_chars_in_filename("Humble Bundle: Nice book"),
+        "Humble Bundle  Nice book".to_string()
     );
 }
 
@@ -57,12 +57,11 @@ fn test_extract_filename_from_url() {
         "with filename",
         "https://dl.humble.com/grokkingalgorithms.mobi?gamekey=xxxxxx&ttl=1655031034&t=yyyyyyyyyy",
         Some("grokkingalgorithms.mobi".to_string()),
-    ),
-    ( 
+    ), (
         "no filename",
-        "https://www.google.com/", None
-    )
-    ];
+        "https://www.google.com/",
+        None
+    )];
 
     for (name, url, expected) in test_data {
         assert_eq!(

@@ -1,3 +1,4 @@
+use anyhow::Context;
 use clap::{arg, command, Command};
 use humble_cli::humanize_bytes;
 use humble_cli::run_future;
@@ -8,7 +9,10 @@ use tabled::{object::Columns, Alignment, Modify, Style};
 
 fn main() {
     match run() {
-        Err(e) => eprintln!("Error: {}", e),
+        Err(e) => {
+            eprintln!("Error: {:#}", e);
+            std::process::exit(1);
+        }
         _ => {}
     }
 }
@@ -31,30 +35,30 @@ fn run() -> Result<(), anyhow::Error> {
 
     let sub_commands = vec![list_subcommand, details_subcommand, download_subcommand];
 
-    let matches = command!()
+    let matches = clap::Command::new(clap::crate_name!())
+        .version(clap::crate_version!())
         .propagate_version(true)
         .subcommand_required(true)
         .arg_required_else_help(true)
         .subcommands(sub_commands)
         .get_matches();
 
-    match matches.subcommand() {
+    return match matches.subcommand() {
         Some(("list", _)) => list_products(&session_key),
         Some(("details", sub_matches)) => {
             show_product_details(&session_key, sub_matches.value_of("KEY").unwrap())
         }
         Some(("download", sub_matches)) => {
-            download_product(&session_key, sub_matches.value_of("KEY").unwrap())?
+            download_product(&session_key, sub_matches.value_of("KEY").unwrap())
         }
-        _ => {}
-    }
-
-    Ok(())
+        _ => Ok(()),
+    };
 }
 
-fn list_products(session_key: &str) {
+fn list_products(session_key: &str) -> Result<(), anyhow::Error> {
     let api = humble_cli::HumbleApi::new(session_key);
-    let products = api.list_products().unwrap();
+    let products = api.list_products()?;
+
     println!("Done: {} products", products.len());
     let mut builder = tabled::builder::Builder::default().set_columns(["Key", "Name", "Size"]);
     for p in products {
@@ -71,11 +75,15 @@ fn list_products(session_key: &str) {
         .with(Modify::new(Columns::single(1)).with(Alignment::left()))
         .with(Modify::new(Columns::single(2)).with(Alignment::right()));
     println!("{table}");
+
+    Ok(())
 }
 
-fn show_product_details(session_key: &str, product_key: &str) {
+fn show_product_details(session_key: &str, product_key: &str) -> Result<(), anyhow::Error> {
     let api = humble_cli::HumbleApi::new(session_key);
-    let product = api.read_product(product_key).unwrap();
+    let product = api
+        .read_product(product_key)
+        .with_context(|| format!("Failed to read details of the product '{}'", product_key))?;
 
     println!("");
     println!("{}", product.details.human_name);
@@ -102,6 +110,8 @@ fn show_product_details(session_key: &str, product_key: &str) {
         .with(Modify::new(Columns::single(2)).with(Alignment::left()))
         .with(Modify::new(Columns::single(3)).with(Alignment::right()));
     println!("{table}");
+
+    Ok(())
 }
 
 fn download_product(session_key: &str, product_key: &str) -> Result<(), anyhow::Error> {
