@@ -5,21 +5,38 @@ use std::cmp::min;
 use std::fs::File;
 use std::io::{Seek, Write};
 
+#[derive(Debug, thiserror::Error)]
+pub enum DownloadError {
+    #[error(transparent)]
+    NetworkError(#[from] reqwest::Error),
+
+    #[error(transparent)]
+    IOError(#[from] std::io::Error),
+
+    #[error("{0}")]
+    GenericError(String),
+}
+
+impl DownloadError {
+    fn from_string(s: String) -> Self {
+        DownloadError::GenericError(s)
+    }
+}
+
 pub async fn download_file(
     client: &Client,
     url: &str,
     path: &str,
     title: &str,
-) -> Result<(), String> {
-    let res = client
-        .get(url)
-        .send()
-        .await
-        .or(Err(format!("Failed to GET from '{}'", &url)))?;
+) -> Result<(), DownloadError> {
+    let res = client.get(url).send().await?;
 
     let total_size = res
         .content_length()
-        .ok_or(format!("Failed to get content length from '{}'", &url))?;
+        .ok_or(DownloadError::from_string(format!(
+            "Failed to get content length from '{}'",
+            &url
+        )))?;
 
     let mut file;
     let mut downloaded: u64 = 0;
@@ -33,7 +50,7 @@ pub async fn download_file(
             .unwrap();
 
         let file_size = std::fs::metadata(path).unwrap().len();
-        file.seek(std::io::SeekFrom::Start(file_size)).unwrap();
+        file.seek(std::io::SeekFrom::Start(file_size))?;
         downloaded = file_size;
 
         if downloaded >= total_size {
@@ -41,16 +58,16 @@ pub async fn download_file(
             return Ok(());
         }
     } else {
-        file = File::create(path).or(Err(format!("Failed to create file '{}'", path)))?;
+        file = File::create(path)?;
     }
 
     let pb = get_progress_bar(total_size);
     pb.set_message(format!("Downloading {}", title));
 
     while let Some(item) = stream.next().await {
-        let chunk = item.or(Err(format!("Error while downloading file")))?;
-        file.write(&chunk)
-            .or(Err(format!("Error while writing to file")))?;
+        let chunk = item?;
+        file.write(&chunk)?;
+
         let new = min(downloaded + (chunk.len() as u64), total_size);
         downloaded = new;
         pb.set_position(new);
