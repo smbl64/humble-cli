@@ -2,7 +2,6 @@ use anyhow::Context;
 use clap::Command;
 use humble_cli::humanize_bytes;
 use humble_cli::run_future;
-use humble_cli::ApiError;
 use std::fs;
 use std::path;
 use tabled::{object::Columns, Alignment, Modify, Style};
@@ -11,7 +10,7 @@ fn main() {
     better_panic::install();
     match run() {
         Err(e) => {
-            eprintln!("Error: {:#}", e);
+            eprintln!("Error: {:?}", e);
             std::process::exit(1);
         }
         _ => {}
@@ -100,9 +99,8 @@ fn show_product_details(session_key: &str, product_key: &str) -> Result<(), anyh
     println!("Total size: {}", humanize_bytes(product.total_size()));
     println!("");
 
-    // Items in this product
-    let mut builder =
-        tabled::builder::Builder::default().set_columns(["", "Name", "Format", "Total Size"]);
+    let mut builder = tabled::builder::Builder::default();
+    builder = builder.set_columns(["", "Name", "Format", "Total Size"]);
 
     for (idx, entry) in product.entries.iter().enumerate() {
         builder = builder.add_record([
@@ -126,16 +124,7 @@ fn show_product_details(session_key: &str, product_key: &str) -> Result<(), anyh
 
 fn download_product(session_key: &str, product_key: &str) -> Result<(), anyhow::Error> {
     let api = humble_cli::HumbleApi::new(session_key);
-    let product = match api.read_product(product_key) {
-        Ok(p) => p,
-        Err(e) => match e {
-            ApiError::BadHttpStatus(404) => {
-                eprintln!("Error: Product not found");
-                return Ok(());
-            }
-            _ => return Err(e.into()),
-        },
-    };
+    let product = api.read_product(product_key)?;
 
     let dir_name = humble_cli::replace_invalid_chars_in_filename(&product.details.human_name);
     let product_dir = create_dir(&dir_name)?;
@@ -153,12 +142,9 @@ fn download_product(session_key: &str, product_key: &str) -> Result<(), anyhow::
 
         for download_entry in product_entry.downloads {
             for ele in download_entry.sub_items {
-                // TODO: Don't use unwrap here
-                let filename = humble_cli::extract_filename_from_url(&ele.url.web).unwrap();
+                let filename = humble_cli::extract_filename_from_url(&ele.url.web)
+                    .context(format!("Cannot get file name from URL '{}'", &ele.url.web))?;
                 let download_path = entry_dir.join(&filename);
-                //println!(" URL  =   {}", ele.url.web);
-                //println!(" FILE =   {}", filename.to_str().unwrap());
-                //println!("");
 
                 let f = humble_cli::download_file(
                     &client,
@@ -166,7 +152,7 @@ fn download_product(session_key: &str, product_key: &str) -> Result<(), anyhow::
                     download_path.to_str().unwrap(),
                     &filename,
                 );
-                run_future(f).expect("failed to download the file");
+                run_future(f)?;
             }
         }
     }

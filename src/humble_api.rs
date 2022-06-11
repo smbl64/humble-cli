@@ -5,11 +5,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ApiError {
-    #[error("Request failed: {0}")]
-    BadHttpStatus(u16),
-
     #[error(transparent)]
-    NetworkError(reqwest::Error),
+    NetworkError(#[from] reqwest::Error),
 
     #[error("Cannot parse the response")]
     DeserializeFailed,
@@ -119,7 +116,7 @@ impl HumbleApi {
         }
     }
 
-    pub fn list_products(&self) -> Result<Vec<Product>, anyhow::Error> {
+    pub fn list_products(&self) -> Result<Vec<Product>, ApiError> {
         let client = Client::new();
 
         // First: get the game keys
@@ -130,11 +127,8 @@ impl HumbleApi {
                 "cookie".to_owned(),
                 format!("_simpleauth_sess={}", self.auth_key),
             )
-            .send()?;
-
-        if !res.status().is_success() {
-            return Err(ApiError::BadHttpStatus(res.status().as_u16()).into());
-        }
+            .send()?
+            .error_for_status()?;
 
         let game_keys = res.json::<Vec<GameKey>>()?;
 
@@ -152,11 +146,9 @@ impl HumbleApi {
                 format!("_simpleauth_sess={}", self.auth_key),
             )
             .query(&query_params)
-            .send()?;
+            .send()?
+            .error_for_status()?;
 
-        if !res.status().is_success() {
-            return Err(ApiError::BadHttpStatus(res.status().as_u16()).into());
-        }
         let product_map = res.json::<ProductMap>()?;
         Ok(product_map.into_values().collect())
     }
@@ -172,12 +164,9 @@ impl HumbleApi {
                 "cookie".to_owned(),
                 format!("_simpleauth_sess={}", self.auth_key),
             )
-            .send()
-            .map_err(|e| ApiError::NetworkError(e))?;
+            .send()?
+            .error_for_status()?;
 
-        if !res.status().is_success() {
-            return Err(ApiError::BadHttpStatus(res.status().as_u16()).into());
-        }
         res.json::<Product>()
             .map_err(|_| ApiError::DeserializeFailed)
     }
