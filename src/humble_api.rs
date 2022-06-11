@@ -179,6 +179,6 @@ impl HumbleApi {
             return Err(ApiError::BadHttpStatus(res.status().as_u16()).into());
         }
         res.json::<Product>()
-            .map_err(|e| ApiError::DeserializeFailed)
+            .map_err(|_| ApiError::DeserializeFailed)
     }
 }
