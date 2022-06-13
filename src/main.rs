@@ -1,16 +1,17 @@
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use clap::Command;
 use humble_cli::humanize_bytes;
 use humble_cli::run_future;
+use humble_cli::ApiError;
 use std::fs;
 use std::path;
 use tabled::{object::Columns, Alignment, Modify, Style};
 
 fn main() {
-    better_panic::install();
+    let crate_name = env!("CARGO_PKG_NAME");
     match run() {
         Err(e) => {
-            eprintln!("Error: {:?}", e);
+            eprintln!("{}: {:?}", crate_name, e);
             std::process::exit(1);
         }
         _ => {}
@@ -23,7 +24,7 @@ fn run() -> Result<(), anyhow::Error> {
 
     let session_key = session_key.trim_end();
 
-    let list_subcommand = Command::new("list").about("List all purchases");
+    let list_subcommand = Command::new("list").about("List all purchased products");
 
     let details_subcommand = Command::new("details")
         .about("Print details of a certain product")
@@ -60,15 +61,35 @@ fn run() -> Result<(), anyhow::Error> {
         Some(("download", sub_matches)) => {
             download_product(&session_key, sub_matches.value_of("KEY").unwrap())
         }
+        // This shouldn't happen
         _ => Ok(()),
     };
 }
 
+fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error> {
+    match input {
+        Ok(val) => Ok(val),
+        Err(ApiError::NetworkError(e)) if e.is_status() => {
+            return match e.status().unwrap() {
+                reqwest::StatusCode::UNAUTHORIZED => Err(anyhow!(
+                    "Unauthorized request (401). Is the session key correct?"
+                )),
+                reqwest::StatusCode::NOT_FOUND => Err(anyhow!(
+                    "Product not found (404). Is the product key correct?"
+                )),
+                s => Err(anyhow!("failed with status: {}", s)),
+            }
+        }
+        Err(e) => return Err(anyhow!("failed: {}", e)),
+    }
+}
+
 fn list_products(session_key: &str) -> Result<(), anyhow::Error> {
     let api = humble_cli::HumbleApi::new(session_key);
-    let products = api.list_products()?;
+    let products = handle_http_errors(api.list_products())?;
 
-    println!("Done: {} products", products.len());
+    println!("{} product(s) found.", products.len());
+
     let mut builder = tabled::builder::Builder::default().set_columns(["Key", "Name", "Size"]);
     for p in products {
         builder = builder.add_record([
@@ -90,9 +111,7 @@ fn list_products(session_key: &str) -> Result<(), anyhow::Error> {
 
 fn show_product_details(session_key: &str, product_key: &str) -> Result<(), anyhow::Error> {
     let api = humble_cli::HumbleApi::new(session_key);
-    let product = api
-        .read_product(product_key)
-        .with_context(|| format!("Failed to read details of the product '{}'", product_key))?;
+    let product = handle_http_errors(api.read_product(product_key))?;
 
     println!("");
     println!("{}", product.details.human_name);
@@ -124,7 +143,7 @@ fn show_product_details(session_key: &str, product_key: &str) -> Result<(), anyh
 
 fn download_product(session_key: &str, product_key: &str) -> Result<(), anyhow::Error> {
     let api = humble_cli::HumbleApi::new(session_key);
-    let product = api.read_product(product_key)?;
+    let product = handle_http_errors(api.read_product(product_key))?;
 
     let dir_name = humble_cli::replace_invalid_chars_in_filename(&product.details.human_name);
     let product_dir = create_dir(&dir_name)?;
