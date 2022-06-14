@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context};
-use clap::Command;
+use clap::{Arg, Command};
 use humble_cli::humanize_bytes;
 use humble_cli::run_future;
 use humble_cli::ApiError;
@@ -29,24 +29,55 @@ fn run() -> Result<(), anyhow::Error> {
     let details_subcommand = Command::new("details")
         .about("Print details of a certain product")
         .arg(
-            clap::Arg::new("KEY")
+            Arg::new("KEY")
                 .required(true)
+                .takes_value(true)
                 .help("The product to show the details of"),
         );
 
     let download_subcommand = Command::new("download")
         .about("Download all items in a product")
         .arg(
-            clap::Arg::new("KEY")
+            Arg::new("KEY")
                 .required(true)
                 .help("The product which must be downloaded"),
+        )
+        .arg(
+            Arg::new("format")
+                .short('f')
+                .long("format")
+                .takes_value(true)
+                .multiple_occurrences(true)
+                .help("Filter downloaded items by their format")
+                .long_help(
+                    "Filter downloaded files by their format. Formats are case-insensitive and \
+                    this filter can be used several times to specify multiple formats.\n\n\
+                    For example: --filter-by-format epub --filter-by-format mobi"
+                )
+        )
+        .arg(
+            Arg::new("max-size")
+                .short('s')
+                .long("max-size")
+                .takes_value(true)
+                .help("Filter downloaded items by their maximum size")
+                .long_help(
+                    "Filter downloaded items by their maximum size. This will skip any sub-item in a product \
+                    that exceeds this limit.\n\n\
+                    Note: The size limit works on a sub-item level, and not per file. \
+                    For example, if you specify a limit of 10 MB and a sub-item has two 6 MB books in it, \
+                    this sub-items will not be downloaded, because its total size exceeds the 10 MB limit (12 MB in total)."
+                    )
         );
 
     let sub_commands = vec![list_subcommand, details_subcommand, download_subcommand];
 
-    let matches = clap::Command::new(clap::crate_name!())
+    let crate_name = clap::crate_name!();
+
+    let matches = clap::Command::new(crate_name)
         .about("The missing Humble Bundle CLI")
         .version(clap::crate_version!())
+        .after_help("Note: `humble-cli -h` prints a short and concise overview while `humble-cli --help` gives all details.")
         .propagate_version(true)
         .subcommand_required(true)
         .arg_required_else_help(true)
@@ -119,7 +150,7 @@ fn show_product_details(session_key: &str, product_key: &str) -> Result<(), anyh
     println!("");
 
     let mut builder = tabled::builder::Builder::default();
-    builder = builder.set_columns(["", "Name", "Format", "Total Size"]);
+    builder = builder.set_columns(["", "Sub-item", "Format", "Total Size"]);
 
     for (idx, entry) in product.entries.iter().enumerate() {
         builder = builder.add_record([
