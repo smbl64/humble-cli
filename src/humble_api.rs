@@ -53,12 +53,15 @@ impl ProductEntry {
         self.downloads.iter().map(|e| e.total_size()).sum()
     }
 
-    pub fn formats(&self) -> String {
+    pub fn formats_as_vec(&self) -> Vec<String> {
         self.downloads
             .iter()
             .map(|d| d.formats())
             .collect::<Vec<_>>()
-            .join(", ")
+    }
+
+    pub fn formats(&self) -> String {
+        self.formats_as_vec().join(", ")
     }
 }
 

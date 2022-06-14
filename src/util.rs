@@ -1,3 +1,4 @@
+use byte_unit::Byte;
 use std::future::Future;
 
 pub fn run_future<F, T>(input: F) -> T
@@ -9,7 +10,15 @@ where
 }
 
 pub fn humanize_bytes(bytes: u64) -> String {
-    bytesize::to_string(bytes, true)
+    Byte::from_bytes(bytes)
+        .get_appropriate_unit(true)
+        .to_string()
+}
+
+// Convert a string representing a byte size (e.g. 12MB) to a number.
+// It supports the IEC (KiB MiB ...) and KB MB ... formats.
+pub fn byte_string_to_number(byte_string: &str) -> Option<u64> {
+    Byte::from_str(byte_string).map(|b| b.into()).ok()
 }
 
 pub fn replace_invalid_chars_in_filename(input: &str) -> String {

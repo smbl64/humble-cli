@@ -64,7 +64,9 @@ pub fn run(config: Config) -> Result<(), anyhow::Error> {
                 .help("Filter downloaded items by their maximum size")
                 .long_help(
                     "Filter downloaded items by their maximum size. This will skip any sub-item in a product \
-                    that exceeds this limit.\n\n\
+                    that exceeds this limit. \
+                    You can use the traditional size units such as KB or MiB. Make sure there is no space \
+                    between the number and the unit. For example 14MB or 4GiB.\n\n\
                     Note: The size limit works on a sub-item level, and not per file. \
                     For example, if you specify a limit of 10 MB and a sub-item has two 6 MB books in it, \
                     this sub-items will not be downloaded, because its total size exceeds the 10 MB limit (12 MB in total)."
@@ -172,6 +174,19 @@ fn show_product_details(config: Config, matches: &clap::ArgMatches) -> Result<()
 
 fn download_product(config: Config, matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let product_key = matches.value_of("KEY").unwrap();
+    let formats = if let Some(values) = matches.values_of("format") {
+        values.collect::<Vec<_>>()
+    } else {
+        vec![]
+    };
+
+    let max_size: u64 = if let Some(byte_str) = matches.value_of("max-size") {
+        util::byte_string_to_number(byte_str)
+            .context(format!("failed to parse the specified size: {}", byte_str))?
+    } else {
+        0
+    };
+
     let api = crate::HumbleApi::new(&config.session_key);
     let product = handle_http_errors(api.read_product(product_key))?;
 
@@ -181,6 +196,12 @@ fn download_product(config: Config, matches: &clap::ArgMatches) -> Result<(), an
     let client = reqwest::Client::new();
 
     for product_entry in product.entries {
+        if max_size > 0 && product_entry.total_size() > max_size {
+            continue;
+        }
+
+        //product_entry.formats_as_vec()
+
         println!("");
         println!("{}", product_entry.human_name);
 
