@@ -25,23 +25,23 @@ pub fn get_config() -> Result<Config, anyhow::Error> {
 }
 
 pub fn run(config: Config) -> Result<(), anyhow::Error> {
-    let list_subcommand = Command::new("list").about("List all purchased products");
+    let list_subcommand = Command::new("list").about("List all purchased bundles");
 
     let details_subcommand = Command::new("details")
-        .about("Print details of a certain product")
+        .about("Print details of a certain bundle")
         .arg(
             Arg::new("KEY")
                 .required(true)
                 .takes_value(true)
-                .help("The product to show the details of"),
+                .help("Bundle's key"),
         );
 
     let download_subcommand = Command::new("download")
-        .about("Download all items in a product")
+        .about("Download all items in a bundle")
         .arg(
             Arg::new("KEY")
                 .required(true)
-                .help("The product which must be downloaded"),
+                .help("The bundle which must be downloaded"),
         )
         .arg(
             Arg::new("format")
@@ -63,7 +63,7 @@ pub fn run(config: Config) -> Result<(), anyhow::Error> {
                 .takes_value(true)
                 .help("Filter downloaded items by their maximum size")
                 .long_help(
-                    "Filter downloaded items by their maximum size. This will skip any sub-item in a product \
+                    "Filter downloaded items by their maximum size. This will skip any sub-item in a bundle \
                     that exceeds this limit. \
                     You can use the traditional size units such as KB or MiB. Make sure there is no space \
                     between the number and the unit. For example 14MB or 4GiB.\n\n\
@@ -88,9 +88,9 @@ pub fn run(config: Config) -> Result<(), anyhow::Error> {
         .get_matches();
 
     return match matches.subcommand() {
-        Some(("list", _)) => list_products(config),
-        Some(("details", sub_matches)) => show_product_details(config, sub_matches),
-        Some(("download", sub_matches)) => download_product(config, sub_matches),
+        Some(("list", _)) => list_bundles(config),
+        Some(("details", sub_matches)) => show_bundle_details(config, sub_matches),
+        Some(("download", sub_matches)) => download_bundle(config, sub_matches),
         // This shouldn't happen
         _ => Ok(()),
     };
@@ -105,7 +105,7 @@ fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error>
                     "Unauthorized request (401). Is the session key correct?"
                 )),
                 reqwest::StatusCode::NOT_FOUND => Err(anyhow!(
-                    "Product not found (404). Is the product key correct?"
+                    "Bundle not found (404). Is the bundle key correct?"
                 )),
                 s => Err(anyhow!("failed with status: {}", s)),
             }
@@ -114,14 +114,14 @@ fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error>
     }
 }
 
-fn list_products(config: Config) -> Result<(), anyhow::Error> {
+fn list_bundles(config: Config) -> Result<(), anyhow::Error> {
     let api = HumbleApi::new(&config.session_key);
-    let products = handle_http_errors(api.list_products())?;
+    let bundles = handle_http_errors(api.list_bundles())?;
 
-    println!("{} product(s) found.", products.len());
+    println!("{} bundles(s) found.", bundles.len());
 
     let mut builder = tabled::builder::Builder::default().set_columns(["Key", "Name", "Size"]);
-    for p in products {
+    for p in bundles {
         builder = builder.add_record([
             &p.gamekey,
             &p.details.human_name,
@@ -139,20 +139,20 @@ fn list_products(config: Config) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn show_product_details(config: Config, matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
-    let product_key = matches.value_of("KEY").unwrap();
+fn show_bundle_details(config: Config, matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+    let bundle_key = matches.value_of("KEY").unwrap();
     let api = crate::HumbleApi::new(&config.session_key);
-    let product = handle_http_errors(api.read_product(product_key))?;
+    let bundle = handle_http_errors(api.read_bundle(bundle_key))?;
 
     println!("");
-    println!("{}", product.details.human_name);
-    println!("Total size: {}", util::humanize_bytes(product.total_size()));
+    println!("{}", bundle.details.human_name);
+    println!("Total size: {}", util::humanize_bytes(bundle.total_size()));
     println!("");
 
     let mut builder = tabled::builder::Builder::default();
     builder = builder.set_columns(["", "Sub-item", "Format", "Total Size"]);
 
-    for (idx, entry) in product.entries.iter().enumerate() {
+    for (idx, entry) in bundle.entries.iter().enumerate() {
         builder = builder.add_record([
             &idx.to_string(),
             &entry.human_name,
@@ -172,8 +172,8 @@ fn show_product_details(config: Config, matches: &clap::ArgMatches) -> Result<()
     Ok(())
 }
 
-fn download_product(config: Config, matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
-    let product_key = matches.value_of("KEY").unwrap();
+fn download_bundle(config: Config, matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+    let bundle_key = matches.value_of("KEY").unwrap();
     let formats = if let Some(values) = matches.values_of("format") {
         values.collect::<Vec<_>>()
     } else {
@@ -188,29 +188,29 @@ fn download_product(config: Config, matches: &clap::ArgMatches) -> Result<(), an
     };
 
     let api = crate::HumbleApi::new(&config.session_key);
-    let product = handle_http_errors(api.read_product(product_key))?;
+    let bundle = handle_http_errors(api.read_bundle(bundle_key))?;
 
-    let dir_name = util::replace_invalid_chars_in_filename(&product.details.human_name);
-    let product_dir = create_dir(&dir_name)?;
+    let dir_name = util::replace_invalid_chars_in_filename(&bundle.details.human_name);
+    let bundle_dir = create_dir(&dir_name)?;
 
     let client = reqwest::Client::new();
 
-    for product_entry in product.entries {
-        if max_size > 0 && product_entry.total_size() > max_size {
+    for product in bundle.entries {
+        if max_size > 0 && product.total_size() > max_size {
             continue;
         }
 
         //product_entry.formats_as_vec()
 
         println!("");
-        println!("{}", product_entry.human_name);
+        println!("{}", product.human_name);
 
-        let entry_dir = product_dir.join(product_entry.human_name);
+        let entry_dir = bundle_dir.join(product.human_name);
         if !entry_dir.exists() {
             fs::create_dir(&entry_dir)?;
         }
 
-        for download_entry in product_entry.downloads {
+        for download_entry in product.downloads {
             for ele in download_entry.sub_items {
                 let filename = util::extract_filename_from_url(&ele.url.web)
                     .context(format!("Cannot get file name from URL '{}'", &ele.url.web))?;

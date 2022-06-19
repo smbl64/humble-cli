@@ -12,33 +12,33 @@ pub enum ApiError {
     DeserializeFailed,
 }
 
-type ProductMap = HashMap<String, Product>;
+type BundleMap = HashMap<String, Bundle>;
 
 #[derive(Debug, Deserialize)]
-pub struct Product {
+pub struct Bundle {
     pub gamekey: String,
 
     #[serde(rename = "product")]
-    pub details: ProductDetails,
+    pub details: BundleDetails,
 
     #[serde(rename = "subproducts")]
-    pub entries: Vec<ProductEntry>,
+    pub entries: Vec<Product>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ProductDetails {
+pub struct BundleDetails {
     pub machine_name: String,
     pub human_name: String,
 }
 
-impl Product {
+impl Bundle {
     pub fn total_size(&self) -> u64 {
         self.entries.iter().map(|e| e.total_size()).sum()
     }
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ProductEntry {
+pub struct Product {
     pub machine_name: String,
     pub human_name: String,
 
@@ -48,7 +48,7 @@ pub struct ProductEntry {
     pub downloads: Vec<DownloadEntry>,
 }
 
-impl ProductEntry {
+impl Product {
     pub fn total_size(&self) -> u64 {
         self.downloads.iter().map(|e| e.total_size()).sum()
     }
@@ -123,7 +123,7 @@ impl HumbleApi {
         }
     }
 
-    pub fn list_products(&self) -> Result<Vec<Product>, ApiError> {
+    pub fn list_bundles(&self) -> Result<Vec<Bundle>, ApiError> {
         let client = Client::new();
 
         // First: get the game keys
@@ -156,11 +156,11 @@ impl HumbleApi {
             .send()?
             .error_for_status()?;
 
-        let product_map = res.json::<ProductMap>()?;
+        let product_map = res.json::<BundleMap>()?;
         Ok(product_map.into_values().collect())
     }
 
-    pub fn read_product(&self, product_key: &str) -> Result<Product, ApiError> {
+    pub fn read_bundle(&self, product_key: &str) -> Result<Bundle, ApiError> {
         let url = format!("https://www.humblebundle.com/api/v1/order/{}", product_key);
 
         let client = Client::new();
@@ -174,7 +174,7 @@ impl HumbleApi {
             .send()?
             .error_for_status()?;
 
-        res.json::<Product>()
+        res.json::<Bundle>()
             .map_err(|_| ApiError::DeserializeFailed)
     }
 }
