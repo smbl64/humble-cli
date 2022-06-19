@@ -56,7 +56,8 @@ impl ProductEntry {
     pub fn formats_as_vec(&self) -> Vec<String> {
         self.downloads
             .iter()
-            .map(|d| d.formats())
+            .map(|d| d.formats_as_vec())
+            .flatten()
             .collect::<Vec<_>>()
     }
 
@@ -76,12 +77,15 @@ impl DownloadEntry {
         self.sub_items.iter().map(|e| e.file_size).sum()
     }
 
-    pub fn formats(&self) -> String {
+    pub fn formats_as_vec(&self) -> Vec<String> {
         self.sub_items
             .iter()
             .map(|s| s.item_type.clone())
             .collect::<Vec<_>>()
-            .join(", ")
+    }
+
+    pub fn formats(&self) -> String {
+        self.formats_as_vec().join(", ")
     }
 }
 
