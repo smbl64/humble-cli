@@ -1,6 +1,6 @@
-mod download;
-mod humble_api;
-mod util;
+pub mod download;
+pub mod humble_api;
+pub mod util;
 
 use anyhow::{anyhow, Context};
 use clap::{Arg, Command};
