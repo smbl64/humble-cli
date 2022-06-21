@@ -59,8 +59,7 @@ impl Product {
     pub fn formats_as_vec(&self) -> Vec<&str> {
         self.downloads
             .iter()
-            .map(|d| d.formats_as_vec())
-            .flatten()
+            .flat_map(|d| d.formats_as_vec())
             .collect::<Vec<_>>()
     }
 

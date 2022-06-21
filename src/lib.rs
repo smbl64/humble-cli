@@ -144,10 +144,10 @@ fn show_bundle_details(config: Config, matches: &clap::ArgMatches) -> Result<(),
     let api = crate::HumbleApi::new(&config.session_key);
     let bundle = handle_http_errors(api.read_bundle(bundle_key))?;
 
-    println!("");
+    println!();
     println!("{}", bundle.details.human_name);
     println!("Total size: {}", util::humanize_bytes(bundle.total_size()));
-    println!("");
+    println!();
 
     let mut builder = tabled::builder::Builder::default();
     builder = builder.set_columns(["", "Sub-item", "Format", "Total Size"]);
@@ -199,7 +199,7 @@ fn download_bundle(config: Config, matches: &clap::ArgMatches) -> Result<(), any
         })
         .collect::<Vec<_>>();
 
-    if products.len() == 0 {
+    if products.is_empty() {
         println!("Nothing to download");
         return Ok(());
     }
@@ -215,7 +215,7 @@ fn download_bundle(config: Config, matches: &clap::ArgMatches) -> Result<(), any
             continue;
         }
 
-        println!("");
+        println!();
         println!("{}", product.human_name);
 
         let entry_dir = bundle_dir.join(&product.human_name);
@@ -225,8 +225,8 @@ fn download_bundle(config: Config, matches: &clap::ArgMatches) -> Result<(), any
 
         for product_download in product.downloads.iter() {
             for dl_info in product_download.items.iter() {
-                if formats.len() > 0 && !formats.contains(&dl_info.format.to_lowercase()) {
-                    println!("Skipping {:?}", dl_info);
+                if !formats.is_empty() && !formats.contains(&dl_info.format.to_lowercase()) {
+                    println!("Skipping '{}'", dl_info.format);
                     continue;
                 }
 
