@@ -1,5 +1,5 @@
 use byte_unit::Byte;
-use std::future::Future;
+use std::{collections::HashSet, future::Future};
 
 pub fn run_future<F, T>(input: F) -> T
 where
@@ -52,6 +52,30 @@ pub fn extract_filename_from_url(url: &str) -> Option<String> {
     }
 }
 
+pub fn str_vectors_intersect<T1, T2>(first: &[T1], second: &[T2]) -> bool
+where
+    T1: AsRef<str>,
+    T2: AsRef<str>,
+{
+    if first.is_empty() || second.is_empty() {
+        return false;
+    }
+
+    let mut first_set = HashSet::new();
+
+    for first_item in first {
+        first_set.insert(first_item.as_ref().to_lowercase());
+    }
+
+    for second_item in second {
+        if first_set.contains(&second_item.as_ref().to_lowercase()) {
+            return true;
+        }
+    }
+
+    false
+}
+
 #[test]
 fn test_remove_invalid_chars() {
     assert_eq!(
@@ -79,5 +103,23 @@ fn test_extract_filename_from_url() {
             "test case '{}'",
             name
         );
+    }
+}
+
+#[test]
+fn vecor_inter() {
+    let test_data = vec![
+        (vec!["FOO", "bar"], vec!["foo"], true),
+        (vec!["foo", "bar"], vec!["baz"], false),
+        (vec!["foo"], vec![], false),
+        (vec![], vec!["baz"], false),
+    ];
+
+    for (first, second, result) in test_data {
+        let msg = format!(
+            "intersect of {:?} and {:?}, expected: {}",
+            first, second, result
+        );
+        assert_eq!(str_vectors_intersect(&first, &second), result, "{}", msg);
     }
 }

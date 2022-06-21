@@ -22,7 +22,7 @@ pub struct Bundle {
     pub details: BundleDetails,
 
     #[serde(rename = "subproducts")]
-    pub entries: Vec<Product>,
+    pub products: Vec<Product>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -33,7 +33,7 @@ pub struct BundleDetails {
 
 impl Bundle {
     pub fn total_size(&self) -> u64 {
-        self.entries.iter().map(|e| e.total_size()).sum()
+        self.products.iter().map(|e| e.total_size()).sum()
     }
 }
 
@@ -45,7 +45,10 @@ pub struct Product {
     #[serde(rename = "url")]
     pub product_details_url: String,
 
-    pub downloads: Vec<DownloadEntry>,
+    /// List of associated downloads with this product.
+    ///
+    /// Note: Each product usually has one item here.
+    pub downloads: Vec<ProductDownload>,
 }
 
 impl Product {
@@ -53,7 +56,7 @@ impl Product {
         self.downloads.iter().map(|e| e.total_size()).sum()
     }
 
-    pub fn formats_as_vec(&self) -> Vec<String> {
+    pub fn formats_as_vec(&self) -> Vec<&str> {
         self.downloads
             .iter()
             .map(|d| d.formats_as_vec())
@@ -67,21 +70,18 @@ impl Product {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct DownloadEntry {
+pub struct ProductDownload {
     #[serde(rename = "download_struct")]
-    pub sub_items: Vec<DownloadEntryItem>,
+    pub items: Vec<DownloadInfo>,
 }
 
-impl DownloadEntry {
+impl ProductDownload {
     pub fn total_size(&self) -> u64 {
-        self.sub_items.iter().map(|e| e.file_size).sum()
+        self.items.iter().map(|e| e.file_size).sum()
     }
 
-    pub fn formats_as_vec(&self) -> Vec<String> {
-        self.sub_items
-            .iter()
-            .map(|s| s.item_type.clone())
-            .collect::<Vec<_>>()
+    pub fn formats_as_vec(&self) -> Vec<&str> {
+        self.items.iter().map(|s| &s.format[..]).collect::<Vec<_>>()
     }
 
     pub fn formats(&self) -> String {
@@ -90,11 +90,11 @@ impl DownloadEntry {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct DownloadEntryItem {
+pub struct DownloadInfo {
     pub md5: String,
 
     #[serde(rename = "name")]
-    pub item_type: String,
+    pub format: String,
 
     pub file_size: u64,
 

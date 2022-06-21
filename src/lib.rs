@@ -152,7 +152,7 @@ fn show_bundle_details(config: Config, matches: &clap::ArgMatches) -> Result<(),
     let mut builder = tabled::builder::Builder::default();
     builder = builder.set_columns(["", "Sub-item", "Format", "Total Size"]);
 
-    for (idx, entry) in bundle.entries.iter().enumerate() {
+    for (idx, entry) in bundle.products.iter().enumerate() {
         builder = builder.add_record([
             &idx.to_string(),
             &entry.human_name,
@@ -175,7 +175,7 @@ fn show_bundle_details(config: Config, matches: &clap::ArgMatches) -> Result<(),
 fn download_bundle(config: Config, matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let bundle_key = matches.value_of("KEY").unwrap();
     let formats = if let Some(values) = matches.values_of("format") {
-        values.collect::<Vec<_>>()
+        values.map(|f| f.to_lowercase()).collect::<Vec<_>>()
     } else {
         vec![]
     };
@@ -190,35 +190,54 @@ fn download_bundle(config: Config, matches: &clap::ArgMatches) -> Result<(), any
     let api = crate::HumbleApi::new(&config.session_key);
     let bundle = handle_http_errors(api.read_bundle(bundle_key))?;
 
+    let products = bundle
+        .products
+        .iter()
+        .filter(|p| max_size == 0 || p.total_size() < max_size)
+        .filter(|p| {
+            formats.is_empty() || util::str_vectors_intersect(&p.formats_as_vec(), &formats)
+        })
+        .collect::<Vec<_>>();
+
+    if products.len() == 0 {
+        println!("Nothing to download");
+        return Ok(());
+    }
+
+    // Create the bundle directory
     let dir_name = util::replace_invalid_chars_in_filename(&bundle.details.human_name);
     let bundle_dir = create_dir(&dir_name)?;
 
     let client = reqwest::Client::new();
 
-    for product in bundle.entries {
+    for product in products {
         if max_size > 0 && product.total_size() > max_size {
             continue;
         }
 
-        //product_entry.formats_as_vec()
-
         println!("");
         println!("{}", product.human_name);
 
-        let entry_dir = bundle_dir.join(product.human_name);
+        let entry_dir = bundle_dir.join(&product.human_name);
         if !entry_dir.exists() {
             fs::create_dir(&entry_dir)?;
         }
 
-        for download_entry in product.downloads {
-            for ele in download_entry.sub_items {
-                let filename = util::extract_filename_from_url(&ele.url.web)
-                    .context(format!("Cannot get file name from URL '{}'", &ele.url.web))?;
+        for product_download in product.downloads.iter() {
+            for dl_info in product_download.items.iter() {
+                if formats.len() > 0 && !formats.contains(&dl_info.format.to_lowercase()) {
+                    println!("Skipping {:?}", dl_info);
+                    continue;
+                }
+
+                let filename = util::extract_filename_from_url(&dl_info.url.web).context(
+                    format!("Cannot get file name from URL '{}'", &dl_info.url.web),
+                )?;
                 let download_path = entry_dir.join(&filename);
 
                 let f = download::download_file(
                     &client,
-                    &ele.url.web,
+                    &dl_info.url.web,
                     download_path.to_str().unwrap(),
                     &filename,
                 );
