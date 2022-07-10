@@ -1,17 +1,9 @@
 name: Release
 
-#on:
-#  push:
-#    tags:
-#      - v[0-9]+.*
 on:
   push:
-    branches: [ master ]
-    paths:
-      - '.github/workflows/*'
-      - 'src/**'
-      - 'Cargo.*'
-      - build.rs
+    tags:
+      - v[0-9]+.*
 
 jobs:
   create-release:
