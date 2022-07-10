@@ -38,9 +38,9 @@ Note: `humble-cli -h` prints a short and concise overview while `humble-cli --he
 details.``
 ```
 
-[rel]: https://github.com/smbl64/humble-cli/releases
+[releases]: https://github.com/smbl64/humble-cli/releases
 [hb-site]: https://www.humblebundle.com/
-[guide-chrome]: https://github.com/smbl64/humble-cli/docs/session-key-chrome.md
-[guide-firefox]: https://github.com/smbl64/humble-cli/docs/session-key-firefox.md
-[guide-safari]: https://github.com/smbl64/humble-cli/docs/session-key-safari.md
+[guide-chrome]: https://github.com/smbl64/humble-cli/blob/master/docs/session-key-chrome.md
+[guide-firefox]: https://github.com/smbl64/humble-cli/blob/master/docs/session-key-firefox.md
+[guide-safari]: https://github.com/smbl64/humble-cli/blob/master/docs/session-key-safari.md
 
