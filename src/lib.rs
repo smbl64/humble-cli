@@ -16,12 +16,18 @@ use humble_api::{ApiError, HumbleApi};
 pub fn run() -> Result<(), anyhow::Error> {
     let list_subcommand = Command::new("list").about("List all purchased bundles");
 
-    let auth_subcommand = Command::new("auth").about("Set the session key").arg(
-        Arg::new("SESSION-KEY")
-            .required(true)
-            .takes_value(true)
-            .help("Session key that's copied from your web browser"),
-    );
+    let auth_subcommand = Command::new("auth")
+        .about("Set the authentication session key")
+        .long_about(
+            "Set the session key used for authentication with Humble Bundle API. \
+            See online documentation on how to find the session key from your web browser.",
+        )
+        .arg(
+            Arg::new("SESSION-KEY")
+                .required(true)
+                .takes_value(true)
+                .help("Session key that's copied from your web browser"),
+        );
 
     let details_subcommand = Command::new("details")
         .about("Print details of a certain bundle")
