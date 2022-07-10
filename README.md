@@ -1,6 +1,8 @@
 # humble-cli
 The missing CLI for downloading your Humble Bundle purchases!
 
+[![Build status](https://github.com/smbl64/humble-cli/actions/workflows/tests.yml/badge.svg)](https://github.com/smbl64/humble-cli/actions)
+
 ## Install
 You can find the binaries in the [Releases][releases] page. Windows, macOS and Linux are supported.
 
