@@ -37,7 +37,7 @@ SUBCOMMANDS:
     list        List all purchased bundles
 
 Note: `humble-cli -h` prints a short and concise overview while `humble-cli --help` gives all
-details.``
+details.
 ```
 
 [releases]: https://github.com/smbl64/humble-cli/releases
