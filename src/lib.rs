@@ -1,31 +1,27 @@
+mod config;
 pub mod download;
 pub mod humble_api;
 pub mod util;
 
 use anyhow::{anyhow, Context};
 use clap::{Arg, Command};
+use config::set_config;
 use std::fs;
 use std::path;
 use tabled::{object::Columns, Alignment, Modify, Style};
 
+pub use config::{get_config, Config};
 use humble_api::{ApiError, HumbleApi};
 
-#[derive(Debug)]
-pub struct Config {
-    pub session_key: String,
-}
-
-pub fn get_config() -> Result<Config, anyhow::Error> {
-    let session_key = std::fs::read_to_string("session.key")
-        .context("failed to read the session key from `session.key` file")?;
-
-    let session_key = session_key.trim_end().to_owned();
-
-    Ok(Config { session_key })
-}
-
-pub fn run(config: Config) -> Result<(), anyhow::Error> {
+pub fn run() -> Result<(), anyhow::Error> {
     let list_subcommand = Command::new("list").about("List all purchased bundles");
+
+    let auth_subcommand = Command::new("auth").about("Set the session key").arg(
+        Arg::new("SESSION-KEY")
+            .required(true)
+            .takes_value(true)
+            .help("Session key that's copied from your web browser"),
+    );
 
     let details_subcommand = Command::new("details")
         .about("Print details of a certain bundle")
@@ -73,7 +69,12 @@ pub fn run(config: Config) -> Result<(), anyhow::Error> {
                     )
         );
 
-    let sub_commands = vec![list_subcommand, details_subcommand, download_subcommand];
+    let sub_commands = vec![
+        auth_subcommand,
+        list_subcommand,
+        details_subcommand,
+        download_subcommand,
+    ];
 
     let crate_name = clap::crate_name!();
 
@@ -88,12 +89,21 @@ pub fn run(config: Config) -> Result<(), anyhow::Error> {
         .get_matches();
 
     return match matches.subcommand() {
-        Some(("list", _)) => list_bundles(config),
-        Some(("details", sub_matches)) => show_bundle_details(config, sub_matches),
-        Some(("download", sub_matches)) => download_bundle(config, sub_matches),
+        Some(("auth", sub_matches)) => auth(sub_matches),
+        Some(("details", sub_matches)) => show_bundle_details(sub_matches),
+        Some(("download", sub_matches)) => download_bundle(sub_matches),
+        Some(("list", _)) => list_bundles(),
         // This shouldn't happen
         _ => Ok(()),
     };
+}
+
+fn auth(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+    let session_key = matches.value_of("SESSION-KEY").unwrap();
+
+    set_config(Config {
+        session_key: session_key.to_owned(),
+    })
 }
 
 fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error> {
@@ -114,7 +124,8 @@ fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error>
     }
 }
 
-fn list_bundles(config: Config) -> Result<(), anyhow::Error> {
+fn list_bundles() -> Result<(), anyhow::Error> {
+    let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
     let bundles = handle_http_errors(api.list_bundles())?;
 
@@ -139,7 +150,8 @@ fn list_bundles(config: Config) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn show_bundle_details(config: Config, matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+    let config = get_config()?;
     let bundle_key = matches.value_of("KEY").unwrap();
     let api = crate::HumbleApi::new(&config.session_key);
     let bundle = handle_http_errors(api.read_bundle(bundle_key))?;
@@ -172,7 +184,8 @@ fn show_bundle_details(config: Config, matches: &clap::ArgMatches) -> Result<(),
     Ok(())
 }
 
-fn download_bundle(config: Config, matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+fn download_bundle(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+    let config = get_config()?;
     let bundle_key = matches.value_of("KEY").unwrap();
     let formats = if let Some(values) = matches.values_of("format") {
         values.map(|f| f.to_lowercase()).collect::<Vec<_>>()
