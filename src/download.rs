@@ -4,6 +4,7 @@ use reqwest::Client;
 use std::cmp::min;
 use std::fs::File;
 use std::io::{Seek, Write};
+use std::time::Duration;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DownloadError {
@@ -29,53 +30,90 @@ pub async fn download_file(
     path: &str,
     title: &str,
 ) -> Result<(), DownloadError> {
-    let res = client.get(url).send().await?;
+    const RETRY_SECONDS: u64 = 5;
+    let mut retries = 3;
 
-    let total_size = res
-        .content_length()
-        .ok_or(DownloadError::from_string(format!(
-            "Failed to get content length from '{}'",
-            &url
-        )))?;
+    loop {
+        let res = _download_file(client, url, path, title).await;
 
-    let mut file;
-    let mut downloaded: u64 = 0;
-    let mut stream = res.bytes_stream();
-
-    if std::path::Path::new(path).exists() {
-        file = std::fs::OpenOptions::new()
-            .read(true)
-            .append(true)
-            .open(path)
-            .unwrap();
-
-        let file_size = std::fs::metadata(path).unwrap().len();
-        file.seek(std::io::SeekFrom::Start(file_size))?;
-        downloaded = file_size;
-
-        if downloaded >= total_size {
-            println!("  Nothing to do. File already exists.");
-            return Ok(());
+        retries -= 1;
+        if retries < 0 {
+            return res;
         }
-    } else {
-        file = File::create(path)?;
+
+        match res {
+            Err(DownloadError::NetworkError(ref net_err))
+                if net_err.is_connect() || net_err.is_timeout() =>
+            {
+                println!("  Will retry in {} seconds...", RETRY_SECONDS);
+                tokio::time::sleep(Duration::from_secs(RETRY_SECONDS)).await;
+                continue;
+            }
+            _ => return res,
+        };
     }
+}
+
+async fn _download_file(
+    client: &Client,
+    url: &str,
+    path: &str,
+    title: &str,
+) -> Result<(), DownloadError> {
+    let (mut file, mut downloaded) = open_file_for_write(path)?;
+    let total_size = get_content_length(client, url).await?;
+
+    if downloaded >= total_size {
+        println!("  Nothing to do. File already exists.");
+        return Ok(());
+    }
+
+    // Start the download
+    let res = client
+        .get(url)
+        .header("Range", format!("bytes={}-", downloaded))
+        .send()
+        .await?;
+
+    let mut stream = res.bytes_stream();
 
     let pb = get_progress_bar(total_size);
     pb.set_message(format!("Downloading {}", title));
 
-    while let Some(item) = stream.next().await {
-        let chunk = item?;
-        file.write(&chunk)?;
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        let _ = file.write(&chunk)?;
 
-        let new = min(downloaded + (chunk.len() as u64), total_size);
-        downloaded = new;
-        pb.set_position(new);
+        downloaded = min(downloaded + (chunk.len() as u64), total_size);
+        pb.set_position(downloaded);
     }
 
     pb.finish_and_clear();
     println!("  Downloaded {}", title);
     Ok(())
+}
+
+fn open_file_for_write(path: &str) -> Result<(File, u64), std::io::Error> {
+    if std::path::Path::new(path).exists() {
+        let mut file = std::fs::OpenOptions::new()
+            .read(true)
+            .append(true)
+            .open(path)?;
+
+        let file_size = std::fs::metadata(path)?.len();
+        file.seek(std::io::SeekFrom::Start(file_size))?;
+        Ok((file, file_size))
+    } else {
+        let file = File::create(path)?;
+        Ok((file, 0))
+    }
+}
+
+async fn get_content_length(client: &Client, url: &str) -> Result<u64, DownloadError> {
+    let res = client.get(url).send().await?;
+    res.content_length().ok_or_else(|| {
+        DownloadError::from_string(format!("Failed to get content length from '{}'", &url))
+    })
 }
 
 fn get_progress_bar(total_size: u64) -> ProgressBar {
