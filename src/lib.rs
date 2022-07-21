@@ -97,7 +97,6 @@ pub fn run() -> Result<(), anyhow::Error> {
         .about("The missing Humble Bundle CLI")
         .version(clap::crate_version!())
         .after_help("Note: `humble-cli -h` prints a short and concise overview while `humble-cli --help` gives all details.")
-        .propagate_version(true)
         .subcommand_required(true)
         .arg_required_else_help(true)
         .subcommands(sub_commands)
