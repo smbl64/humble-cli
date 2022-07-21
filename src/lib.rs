@@ -14,7 +14,16 @@ pub use config::{get_config, Config};
 use humble_api::{ApiError, HumbleApi};
 
 pub fn run() -> Result<(), anyhow::Error> {
-    let list_subcommand = Command::new("list").about("List all purchased bundles");
+    let list_subcommand = Command::new("list")
+        .about("List all purchased bundles")
+        .arg(
+        Arg::new("id-only")
+            .long("id-only")
+            .help("Print bundle IDs only")
+            .long_help(
+                "Print bundle IDs only. This can be used to chain commands together for automation.",
+            ),
+    );
 
     let auth_subcommand = Command::new("auth")
         .about("Set the authentication session key")
@@ -98,7 +107,7 @@ pub fn run() -> Result<(), anyhow::Error> {
         Some(("auth", sub_matches)) => auth(sub_matches),
         Some(("details", sub_matches)) => show_bundle_details(sub_matches),
         Some(("download", sub_matches)) => download_bundle(sub_matches),
-        Some(("list", _)) => list_bundles(),
+        Some(("list", sub_matches)) => list_bundles(sub_matches),
         // This shouldn't happen
         _ => Ok(()),
     };
@@ -130,9 +139,20 @@ fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error>
     }
 }
 
-fn list_bundles() -> Result<(), anyhow::Error> {
+fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+    let id_only = matches.is_present("id-only");
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
+
+    if id_only {
+        let ids = handle_http_errors(api.list_bundle_keys())?;
+        for id in ids {
+            println!("{}", id);
+        }
+
+        return Ok(());
+    }
+
     let bundles = handle_http_errors(api.list_bundles())?;
 
     println!("{} bundle(s) found.", bundles.len());
