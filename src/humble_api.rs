@@ -122,10 +122,9 @@ impl HumbleApi {
         }
     }
 
-    pub fn list_bundles(&self) -> Result<Vec<Bundle>, ApiError> {
+    pub fn list_bundle_keys(&self) -> Result<Vec<String>, ApiError> {
         let client = Client::new();
 
-        // First: get the game keys
         let res = client
             .get("https://www.humblebundle.com/api/v1/user/order")
             .header(reqwest::header::ACCEPT, "application/json")
@@ -136,13 +135,19 @@ impl HumbleApi {
             .send()?
             .error_for_status()?;
 
-        let game_keys = res.json::<Vec<GameKey>>()?;
-
-        // Second: get details for those game keys
-        let query_params: Vec<_> = game_keys
+        let game_keys = res
+            .json::<Vec<GameKey>>()?
             .into_iter()
-            .map(|g| ("gamekeys", g.gamekey))
+            .map(|g| g.gamekey)
             .collect();
+
+        Ok(game_keys)
+    }
+
+    pub fn list_bundles(&self) -> Result<Vec<Bundle>, ApiError> {
+        let client = Client::new();
+        let game_keys = self.list_bundle_keys()?;
+        let query_params: Vec<_> = game_keys.into_iter().map(|key| ("gamekeys", key)).collect();
 
         let res = client
             .get("https://www.humblebundle.com/api/v1/orders")
