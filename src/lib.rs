@@ -135,7 +135,7 @@ fn list_bundles() -> Result<(), anyhow::Error> {
     let api = HumbleApi::new(&config.session_key);
     let bundles = handle_http_errors(api.list_bundles())?;
 
-    println!("{} bundles(s) found.", bundles.len());
+    println!("{} bundle(s) found.", bundles.len());
 
     let mut builder = tabled::builder::Builder::default().set_columns(["Key", "Name", "Size"]);
     for p in bundles {
