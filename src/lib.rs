@@ -43,18 +43,24 @@ pub fn run() -> Result<(), anyhow::Error> {
     let details_subcommand = Command::new("details")
         .about("Print details of a certain bundle")
         .arg(
-            Arg::new("KEY")
+            Arg::new("BUNDLE-KEY")
                 .required(true)
                 .takes_value(true)
-                .help("Bundle's key"),
+                .help("The key for the bundle which must be shown")
+                .long_help(
+                    "The key for the bundle which must be shown. It can be partially entered.",
+                ),
         );
 
     let download_subcommand = Command::new("download")
         .about("Download all items in a bundle")
         .arg(
-            Arg::new("KEY")
+            Arg::new("BUNDLE-KEY")
                 .required(true)
-                .help("The bundle which must be downloaded"),
+                .help("The key for the bundle which must be downloaded")
+                .long_help(
+                    "The key for the bundle which must be downloaded. It can be partially entered."
+                )
         )
         .arg(
             Arg::new("format")
@@ -199,7 +205,7 @@ fn find_key(all_keys: Vec<String>, key_to_find: &str) -> Option<String> {
 
 fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let config = get_config()?;
-    let bundle_key = matches.value_of("KEY").unwrap();
+    let bundle_key = matches.value_of("BUNDLE-KEY").unwrap();
     let api = crate::HumbleApi::new(&config.session_key);
 
     let bundle_key = match find_key(api.list_bundle_keys()?, bundle_key) {
@@ -239,7 +245,7 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
 
 fn download_bundle(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let config = get_config()?;
-    let bundle_key = matches.value_of("KEY").unwrap();
+    let bundle_key = matches.value_of("BUNDLE-KEY").unwrap();
     let formats = if let Some(values) = matches.values_of("format") {
         values.map(|f| f.to_lowercase()).collect::<Vec<_>>()
     } else {
