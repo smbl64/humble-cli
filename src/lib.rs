@@ -1,11 +1,13 @@
 mod config;
 pub mod download;
 pub mod humble_api;
+mod key_match;
 pub mod util;
 
 use anyhow::{anyhow, Context};
 use clap::{Arg, Command};
 use config::set_config;
+use key_match::KeyMatch;
 use std::fs;
 use std::path;
 use tabled::{object::Columns, Alignment, Modify, Style};
@@ -175,11 +177,37 @@ fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+fn find_key(all_keys: Vec<String>, key_to_find: &str) -> Option<String> {
+    let key_match = KeyMatch::new(all_keys, key_to_find);
+    let keys = key_match.get_matches();
+
+    match keys.len() {
+        1 => Some(keys[0].clone()),
+        0 => {
+            eprintln!("No bundle matches '{}'", key_to_find);
+            None
+        }
+        _ => {
+            eprintln!("More than one bundle matches '{}':", key_to_find);
+            for key in keys {
+                eprintln!("{}", key);
+            }
+            None
+        }
+    }
+}
+
 fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let config = get_config()?;
     let bundle_key = matches.value_of("KEY").unwrap();
     let api = crate::HumbleApi::new(&config.session_key);
-    let bundle = handle_http_errors(api.read_bundle(bundle_key))?;
+
+    let bundle_key = match find_key(api.list_bundle_keys()?, bundle_key) {
+        Some(key) => key,
+        None => return Ok(()),
+    };
+
+    let bundle = handle_http_errors(api.read_bundle(&bundle_key))?;
 
     println!();
     println!("{}", bundle.details.human_name);
@@ -226,7 +254,13 @@ fn download_bundle(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     };
 
     let api = crate::HumbleApi::new(&config.session_key);
-    let bundle = handle_http_errors(api.read_bundle(bundle_key))?;
+
+    let bundle_key = match find_key(api.list_bundle_keys()?, bundle_key) {
+        Some(key) => key,
+        None => return Ok(()),
+    };
+
+    let bundle = handle_http_errors(api.read_bundle(&bundle_key))?;
 
     let products = bundle
         .products
