@@ -208,7 +208,7 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
     let bundle_key = matches.value_of("BUNDLE-KEY").unwrap();
     let api = crate::HumbleApi::new(&config.session_key);
 
-    let bundle_key = match find_key(api.list_bundle_keys()?, bundle_key) {
+    let bundle_key = match find_key(handle_http_errors(api.list_bundle_keys())?, bundle_key) {
         Some(key) => key,
         None => return Ok(()),
     };
@@ -261,7 +261,7 @@ fn download_bundle(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
 
     let api = crate::HumbleApi::new(&config.session_key);
 
-    let bundle_key = match find_key(api.list_bundle_keys()?, bundle_key) {
+    let bundle_key = match find_key(handle_http_errors(api.list_bundle_keys())?, bundle_key) {
         Some(key) => key,
         None => return Ok(()),
     };
