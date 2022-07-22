@@ -1,11 +1,13 @@
 mod config;
 pub mod download;
 pub mod humble_api;
+mod key_match;
 pub mod util;
 
 use anyhow::{anyhow, Context};
 use clap::{Arg, Command};
 use config::set_config;
+use key_match::KeyMatch;
 use std::fs;
 use std::path;
 use tabled::{object::Columns, Alignment, Modify, Style};
@@ -14,7 +16,16 @@ pub use config::{get_config, Config};
 use humble_api::{ApiError, HumbleApi};
 
 pub fn run() -> Result<(), anyhow::Error> {
-    let list_subcommand = Command::new("list").about("List all purchased bundles");
+    let list_subcommand = Command::new("list")
+        .about("List all purchased bundles")
+        .arg(
+        Arg::new("id-only")
+            .long("id-only")
+            .help("Print bundle IDs only")
+            .long_help(
+                "Print bundle IDs only. This can be used to chain commands together for automation.",
+            ),
+    );
 
     let auth_subcommand = Command::new("auth")
         .about("Set the authentication session key")
@@ -32,18 +43,24 @@ pub fn run() -> Result<(), anyhow::Error> {
     let details_subcommand = Command::new("details")
         .about("Print details of a certain bundle")
         .arg(
-            Arg::new("KEY")
+            Arg::new("BUNDLE-KEY")
                 .required(true)
                 .takes_value(true)
-                .help("Bundle's key"),
+                .help("The key for the bundle which must be shown")
+                .long_help(
+                    "The key for the bundle which must be shown. It can be partially entered.",
+                ),
         );
 
     let download_subcommand = Command::new("download")
         .about("Download all items in a bundle")
         .arg(
-            Arg::new("KEY")
+            Arg::new("BUNDLE-KEY")
                 .required(true)
-                .help("The bundle which must be downloaded"),
+                .help("The key for the bundle which must be downloaded")
+                .long_help(
+                    "The key for the bundle which must be downloaded. It can be partially entered."
+                )
         )
         .arg(
             Arg::new("format")
@@ -88,7 +105,6 @@ pub fn run() -> Result<(), anyhow::Error> {
         .about("The missing Humble Bundle CLI")
         .version(clap::crate_version!())
         .after_help("Note: `humble-cli -h` prints a short and concise overview while `humble-cli --help` gives all details.")
-        .propagate_version(true)
         .subcommand_required(true)
         .arg_required_else_help(true)
         .subcommands(sub_commands)
@@ -98,7 +114,7 @@ pub fn run() -> Result<(), anyhow::Error> {
         Some(("auth", sub_matches)) => auth(sub_matches),
         Some(("details", sub_matches)) => show_bundle_details(sub_matches),
         Some(("download", sub_matches)) => download_bundle(sub_matches),
-        Some(("list", _)) => list_bundles(),
+        Some(("list", sub_matches)) => list_bundles(sub_matches),
         // This shouldn't happen
         _ => Ok(()),
     };
@@ -130,12 +146,23 @@ fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error>
     }
 }
 
-fn list_bundles() -> Result<(), anyhow::Error> {
+fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+    let id_only = matches.is_present("id-only");
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
+
+    if id_only {
+        let ids = handle_http_errors(api.list_bundle_keys())?;
+        for id in ids {
+            println!("{}", id);
+        }
+
+        return Ok(());
+    }
+
     let bundles = handle_http_errors(api.list_bundles())?;
 
-    println!("{} bundles(s) found.", bundles.len());
+    println!("{} bundle(s) found.", bundles.len());
 
     let mut builder = tabled::builder::Builder::default().set_columns(["Key", "Name", "Size"]);
     for p in bundles {
@@ -156,11 +183,37 @@ fn list_bundles() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+fn find_key(all_keys: Vec<String>, key_to_find: &str) -> Option<String> {
+    let key_match = KeyMatch::new(all_keys, key_to_find);
+    let keys = key_match.get_matches();
+
+    match keys.len() {
+        1 => Some(keys[0].clone()),
+        0 => {
+            eprintln!("No bundle matches '{}'", key_to_find);
+            None
+        }
+        _ => {
+            eprintln!("More than one bundle matches '{}':", key_to_find);
+            for key in keys {
+                eprintln!("{}", key);
+            }
+            None
+        }
+    }
+}
+
 fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let config = get_config()?;
-    let bundle_key = matches.value_of("KEY").unwrap();
+    let bundle_key = matches.value_of("BUNDLE-KEY").unwrap();
     let api = crate::HumbleApi::new(&config.session_key);
-    let bundle = handle_http_errors(api.read_bundle(bundle_key))?;
+
+    let bundle_key = match find_key(handle_http_errors(api.list_bundle_keys())?, bundle_key) {
+        Some(key) => key,
+        None => return Ok(()),
+    };
+
+    let bundle = handle_http_errors(api.read_bundle(&bundle_key))?;
 
     println!();
     println!("{}", bundle.details.human_name);
@@ -192,7 +245,7 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
 
 fn download_bundle(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let config = get_config()?;
-    let bundle_key = matches.value_of("KEY").unwrap();
+    let bundle_key = matches.value_of("BUNDLE-KEY").unwrap();
     let formats = if let Some(values) = matches.values_of("format") {
         values.map(|f| f.to_lowercase()).collect::<Vec<_>>()
     } else {
@@ -207,7 +260,13 @@ fn download_bundle(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     };
 
     let api = crate::HumbleApi::new(&config.session_key);
-    let bundle = handle_http_errors(api.read_bundle(bundle_key))?;
+
+    let bundle_key = match find_key(handle_http_errors(api.list_bundle_keys())?, bundle_key) {
+        Some(key) => key,
+        None => return Ok(()),
+    };
+
+    let bundle = handle_http_errors(api.read_bundle(&bundle_key))?;
 
     let products = bundle
         .products
