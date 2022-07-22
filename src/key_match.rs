@@ -31,7 +31,7 @@ impl KeyMatch {
         self.keys
             .iter()
             .filter(|k| k.to_lowercase().starts_with(&self.target))
-            .map(|k| k.clone())
+            .cloned()
             .collect()
     }
 }

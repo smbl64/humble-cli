@@ -30,7 +30,7 @@ pub fn set_config(config: Config) -> Result<(), anyhow::Error> {
 }
 
 fn get_config_file_name() -> anyhow::Result<PathBuf> {
-    let mut home = dirs::home_dir().ok_or(anyhow!("cannot find the home directory"))?;
+    let mut home = dirs::home_dir().ok_or_else(|| anyhow!("cannot find the home directory"))?;
     home.push(".humble-cli-key");
     Ok(home)
 }
