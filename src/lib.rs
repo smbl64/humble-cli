@@ -225,7 +225,7 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
 
     for (idx, entry) in bundle.products.iter().enumerate() {
         builder = builder.add_record([
-            &idx.to_string(),
+            &(idx + 1).to_string(),
             &entry.human_name,
             &entry.formats(),
             &util::humanize_bytes(entry.total_size()),
