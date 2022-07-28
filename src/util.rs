@@ -107,7 +107,7 @@ fn test_extract_filename_from_url() {
 }
 
 #[test]
-fn vecor_inter() {
+fn test_vectors_intersect() {
     let test_data = vec![
         (vec!["FOO", "bar"], vec!["foo"], true),
         (vec!["foo", "bar"], vec!["baz"], false),
