@@ -76,6 +76,35 @@ where
     false
 }
 
+/// Parse the given `usize` range and return the values in that range as a `Vector`.
+///
+/// Value formats are:
+/// - A single value: 42
+/// - A range with beginning and end (1-5): Returns all valus between those two numbers (inclusive).
+/// - A range with no end (10-): In this case, `max_value` specifies the end of the range.
+/// - A range with no beginning (-5): In this case, the range begins at `1`.
+///
+/// Note: the range starts at `1`, **not** `0`.
+pub fn parse_usize_range(value: &str, max_value: usize) -> Option<Vec<usize>> {
+    let dash_idx = value.find("-");
+
+    if dash_idx == None {
+        return value.parse::<usize>().map(|v| vec![v]).ok();
+    }
+
+    let dash_idx = dash_idx.unwrap();
+
+    let left = &value[0..dash_idx];
+    let right = &value[dash_idx + 1..];
+
+    let range_left = left.parse::<usize>().unwrap_or(1);
+    let range_right = right.parse::<usize>().unwrap_or(max_value);
+
+    // These min and max values are intentional:
+    // min value is `1` and max value is `max_value + 1`
+    Some((range_left..range_right + 1).collect())
+}
+
 #[test]
 fn test_remove_invalid_chars() {
     assert_eq!(
@@ -121,5 +150,35 @@ fn test_vectors_intersect() {
             first, second, result
         );
         assert_eq!(str_vectors_intersect(&first, &second), result, "{}", msg);
+    }
+}
+
+#[test]
+fn test_parse_usize_range() {
+    const MAX_VAL: usize = 50;
+
+    let test_data = vec![
+        ("empty string", "", None),
+        ("invalid string", "abcd", None),
+        ("single value", "42", Some(vec![42])),
+        (
+            "range with start and end",
+            "5-10",
+            Some(vec![5, 6, 7, 8, 9, 10]),
+        ),
+        ("range with no start", "-5", Some(vec![1, 2, 3, 4, 5])),
+        (
+            "range with no end",
+            "45-",
+            Some(vec![45, 46, 47, 48, 49, 50]),
+        ), // 50 is MAX_VAL
+    ];
+
+    for (name, input, expected) in test_data {
+        let msg = format!(
+            "'{}' failed: input = {}, expected = {:?}",
+            name, input, &expected
+        );
+        assert_eq!(parse_usize_range(input, MAX_VAL), expected, "{}", msg);
     }
 }
