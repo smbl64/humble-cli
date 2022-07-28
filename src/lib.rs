@@ -221,7 +221,7 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
     println!();
 
     let mut builder = tabled::builder::Builder::default();
-    builder = builder.set_columns(["", "Sub-item", "Format", "Total Size"]);
+    builder = builder.set_columns(["#", "Sub-item", "Format", "Total Size"]);
 
     for (idx, entry) in bundle.products.iter().enumerate() {
         builder = builder.add_record([
