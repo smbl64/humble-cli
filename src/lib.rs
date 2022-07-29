@@ -63,6 +63,23 @@ pub fn run() -> Result<(), anyhow::Error> {
                 )
         )
         .arg(
+            Arg::new("item-numbers")
+            .short('i')
+            .long("item-numbers")
+            .takes_value(true)
+            .help("Download only specified items")
+            .long_help(
+                "Download only specified items. This is a comman-separated list of item numbers. \
+                Item number begin from 1 and can be a single number or a range.\n\
+                Some examples:\n\n\
+                '--item-numbers 1,3,5' will download items 1, 3, and 5.\n\
+                '--item number 5-10' will download items 5 to 10 (inclusive)\n\n\
+                When specifying ranges, either the beginning or the end of the range can be omitted.\n\
+                For example, '--item-numbers -6' will download items 1 to 6.
+                "
+            )
+        )
+        .arg(
             Arg::new("format")
                 .short('f')
                 .long("format")
@@ -268,9 +285,25 @@ fn download_bundle(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
 
     let bundle = handle_http_errors(api.read_bundle(&bundle_key))?;
 
+    // To parse the item number ranges, we need to know the max value
+    // for unbounded ranges (e.g. 12-). That's why we parse this argument
+    // after we read the bundle from the API.
+    let item_numbers = if let Some(value) = matches.value_of("item-numbers") {
+        let ranges = value.split(',').collect::<Vec<_>>();
+        util::union_usize_ranges(&ranges, bundle.products.len())?
+    } else {
+        vec![]
+    };
+
+    // Filter products based on entered criteria
+    // Note that item numbers entered by user start at 1, while our index
+    // starts as 0.
     let products = bundle
         .products
         .iter()
+        .enumerate()
+        .filter(|&(i, _)| item_numbers.is_empty() || item_numbers.contains(&(i + 1)))
+        .map(|(_, p)| p)
         .filter(|p| max_size == 0 || p.total_size() < max_size)
         .filter(|p| {
             formats.is_empty() || util::str_vectors_intersect(&p.formats_as_vec(), &formats)
