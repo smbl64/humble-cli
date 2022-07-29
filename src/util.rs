@@ -97,8 +97,23 @@ pub fn parse_usize_range(value: &str, max_value: usize) -> Option<Vec<usize>> {
     let left = &value[0..dash_idx];
     let right = &value[dash_idx + 1..];
 
-    let range_left = left.parse::<usize>().unwrap_or(1);
-    let range_right = right.parse::<usize>().unwrap_or(max_value);
+    let range_left = if left.len() > 0 {
+        match left.parse::<usize>() {
+            Ok(v) => v,
+            Err(_) => return None,
+        }
+    } else {
+        1
+    };
+
+    let range_right = if right.len() > 0 {
+        match right.parse::<usize>() {
+            Ok(v) => v,
+            Err(_) => return None,
+        }
+    } else {
+        max_value
+    };
 
     // These min and max values are intentional:
     // min value is `1` and max value is `max_value + 1`
@@ -172,6 +187,9 @@ fn test_parse_usize_range() {
             "45-",
             Some(vec![45, 46, 47, 48, 49, 50]),
         ), // 50 is MAX_VAL
+        ("invalid start", "abc-", None),
+        ("invalid end", "-abc", None),
+        ("invalid start and end", "abc-def", None),
     ];
 
     for (name, input, expected) in test_data {
