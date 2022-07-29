@@ -10,7 +10,7 @@ impl KeyMatch {
     pub fn new(keys: Vec<String>, target: &str) -> Self {
         Self {
             keys,
-            target: target.to_lowercase(),
+            target: target.to_owned(),
         }
     }
 
@@ -28,12 +28,22 @@ impl KeyMatch {
             return vec![self.target.clone()];
         }
 
+        let lowercase_target = self.target.to_lowercase();
         self.keys
             .iter()
-            .filter(|k| k.to_lowercase().starts_with(&self.target))
+            .filter(|k| k.to_lowercase().starts_with(&lowercase_target))
             .cloned()
             .collect()
     }
+}
+
+#[test]
+fn test_exact_match() {
+    let keys = vec!["1AaAaA".to_owned(), "2BbBbB".to_owned()];
+    let target = "1AaAaA".to_owned();
+
+    let key_match = KeyMatch::new(keys, &target);
+    assert_eq!(key_match.get_matches(), vec!["1AaAaA".to_owned()]);
 }
 
 #[test]
