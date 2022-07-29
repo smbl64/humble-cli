@@ -86,7 +86,7 @@ where
 ///
 /// Note: the range starts at `1`, **not** `0`.
 pub fn parse_usize_range(value: &str, max_value: usize) -> Option<Vec<usize>> {
-    let dash_idx = value.find("-");
+    let dash_idx = value.find('-');
 
     if dash_idx == None {
         return value.parse::<usize>().map(|v| vec![v]).ok();
@@ -97,7 +97,7 @@ pub fn parse_usize_range(value: &str, max_value: usize) -> Option<Vec<usize>> {
     let left = &value[0..dash_idx];
     let right = &value[dash_idx + 1..];
 
-    let range_left = if left.len() > 0 {
+    let range_left = if !left.is_empty() {
         match left.parse::<usize>() {
             Ok(v) => v,
             Err(_) => return None,
@@ -106,7 +106,7 @@ pub fn parse_usize_range(value: &str, max_value: usize) -> Option<Vec<usize>> {
         1
     };
 
-    let range_right = if right.len() > 0 {
+    let range_right = if !right.is_empty() {
         match right.parse::<usize>() {
             Ok(v) => v,
             Err(_) => return None,
@@ -131,7 +131,7 @@ pub fn union_usize_ranges(values: &[&str], max_value: usize) -> Result<Vec<usize
         }
     }
 
-    if invalid_values.len() > 0 {
+    if !invalid_values.is_empty() {
         let msg = invalid_values
             .into_iter()
             .map(|v| format!("'{}'", v))
