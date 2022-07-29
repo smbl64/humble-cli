@@ -120,6 +120,32 @@ pub fn parse_usize_range(value: &str, max_value: usize) -> Option<Vec<usize>> {
     Some((range_left..range_right + 1).collect())
 }
 
+pub fn union_usize_ranges(values: &[&str], max_value: usize) -> Result<Vec<usize>, anyhow::Error> {
+    let mut invalid_values = vec![];
+    let mut parsed = HashSet::new();
+
+    for &v in values {
+        match parse_usize_range(v, max_value) {
+            Some(usize_values) => parsed.extend(usize_values),
+            None => invalid_values.push(v),
+        }
+    }
+
+    if invalid_values.len() > 0 {
+        let msg = invalid_values
+            .into_iter()
+            .map(|v| format!("'{}'", v))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        return Err(anyhow::anyhow!("{}", msg));
+    }
+
+    let mut output = Vec::from_iter(parsed);
+    output.sort();
+    Ok(output)
+}
+
 #[test]
 fn test_remove_invalid_chars() {
     assert_eq!(
@@ -198,5 +224,56 @@ fn test_parse_usize_range() {
             name, input, &expected
         );
         assert_eq!(parse_usize_range(input, MAX_VAL), expected, "{}", msg);
+    }
+}
+
+#[test]
+fn test_union_valid_usize_ranges() {
+    const MAX_VAL: usize = 10;
+    let test_data = vec![
+        ("simple values", vec!["5", "10"], vec![5, 10]),
+        ("simple value and range", vec!["8", "7-"], vec![7, 8, 9, 10]),
+        ("two ranges", vec!["-3", "7-"], vec![1, 2, 3, 7, 8, 9, 10]),
+    ];
+
+    for (name, input, expected) in test_data {
+        let output = union_usize_ranges(&input, MAX_VAL);
+
+        let msg = format!(
+            "'{}' failed: input = {:?}, expected = {:?}",
+            name, &input, &expected
+        );
+
+        assert!(output.is_ok(), "{}", msg);
+        assert_eq!(output.unwrap(), expected, "{}", msg);
+    }
+}
+
+#[test]
+fn test_union_invalid_usize_ranges() {
+    const MAX_VAL: usize = 10;
+    let test_data = vec![
+        ("invalid simple values", vec!["a", "b"]),
+        ("invalid ranges", vec!["a-", "-b"]),
+    ];
+
+    for (name, input) in test_data {
+        // expected error message
+        let expected_err_msg = input
+            .iter()
+            .map(|v| format!("'{}'", v))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let output = union_usize_ranges(&input, MAX_VAL);
+
+        let assert_msg = format!(
+            "'{}' failed: input = {:?}, expected = {:?}",
+            name, &input, &expected_err_msg
+        );
+
+        assert!(output.is_err(), "{}", assert_msg);
+        let output_err_msg: String = output.unwrap_err().downcast().unwrap();
+        assert_eq!(output_err_msg, expected_err_msg, "{}", assert_msg);
     }
 }
