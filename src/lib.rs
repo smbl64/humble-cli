@@ -69,13 +69,13 @@ pub fn run() -> Result<(), anyhow::Error> {
             .takes_value(true)
             .help("Download only specified items")
             .long_help(
-                "Download only specified items. This is a comman-separated list of item numbers. \
-                Item number begin from 1 and can be a single number or a range.\n\
+                "Download only specified items. This is a comman-separated list of item numbers to download. \
+                Item numbers begin from 1 and can be a single number or a range.\n\
                 Some examples:\n\n\
                 '--item-numbers 1,3,5' will download items 1, 3, and 5.\n\
                 '--item number 5-10' will download items 5 to 10 (inclusive)\n\n\
                 When specifying ranges, either the beginning or the end of the range can be omitted.\n\
-                For example, '--item-numbers -6' will download items 1 to 6.
+                For example, '--item-numbers 10-' will download items 10 to the end.
                 "
             )
         )
