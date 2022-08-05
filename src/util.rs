@@ -76,6 +76,76 @@ where
     false
 }
 
+/// Parse the given `usize` range and return the values in that range as a `Vector`.
+///
+/// Value formats are:
+/// - A single value: 42
+/// - A range with beginning and end (1-5): Returns all valus between those two numbers (inclusive).
+/// - A range with no end (10-): In this case, `max_value` specifies the end of the range.
+/// - A range with no beginning (-5): In this case, the range begins at `1`.
+///
+/// Note: the range starts at `1`, **not** `0`.
+pub fn parse_usize_range(value: &str, max_value: usize) -> Option<Vec<usize>> {
+    let dash_idx = value.find('-');
+
+    if dash_idx == None {
+        return value.parse::<usize>().map(|v| vec![v]).ok();
+    }
+
+    let dash_idx = dash_idx.unwrap();
+
+    let left = &value[0..dash_idx];
+    let right = &value[dash_idx + 1..];
+
+    let range_left = if !left.is_empty() {
+        match left.parse::<usize>() {
+            Ok(v) => v,
+            Err(_) => return None,
+        }
+    } else {
+        1
+    };
+
+    let range_right = if !right.is_empty() {
+        match right.parse::<usize>() {
+            Ok(v) => v,
+            Err(_) => return None,
+        }
+    } else {
+        max_value
+    };
+
+    // These min and max values are intentional:
+    // min value is `1` and max value is `max_value + 1`
+    Some((range_left..range_right + 1).collect())
+}
+
+pub fn union_usize_ranges(values: &[&str], max_value: usize) -> Result<Vec<usize>, anyhow::Error> {
+    let mut invalid_values = vec![];
+    let mut parsed = HashSet::new();
+
+    for &v in values {
+        match parse_usize_range(v, max_value) {
+            Some(usize_values) => parsed.extend(usize_values),
+            None => invalid_values.push(v),
+        }
+    }
+
+    if !invalid_values.is_empty() {
+        let msg = invalid_values
+            .into_iter()
+            .map(|v| format!("'{}'", v))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        return Err(anyhow::anyhow!("{}", msg));
+    }
+
+    let mut output = Vec::from_iter(parsed);
+    output.sort();
+    Ok(output)
+}
+
 #[test]
 fn test_remove_invalid_chars() {
     assert_eq!(
@@ -107,7 +177,7 @@ fn test_extract_filename_from_url() {
 }
 
 #[test]
-fn vecor_inter() {
+fn test_vectors_intersect() {
     let test_data = vec![
         (vec!["FOO", "bar"], vec!["foo"], true),
         (vec!["foo", "bar"], vec!["baz"], false),
@@ -121,5 +191,89 @@ fn vecor_inter() {
             first, second, result
         );
         assert_eq!(str_vectors_intersect(&first, &second), result, "{}", msg);
+    }
+}
+
+#[test]
+fn test_parse_usize_range() {
+    const MAX_VAL: usize = 50;
+
+    let test_data = vec![
+        ("empty string", "", None),
+        ("invalid string", "abcd", None),
+        ("single value", "42", Some(vec![42])),
+        (
+            "range with start and end",
+            "5-10",
+            Some(vec![5, 6, 7, 8, 9, 10]),
+        ),
+        ("range with no start", "-5", Some(vec![1, 2, 3, 4, 5])),
+        (
+            "range with no end",
+            "45-",
+            Some(vec![45, 46, 47, 48, 49, 50]),
+        ), // 50 is MAX_VAL
+        ("invalid start", "abc-", None),
+        ("invalid end", "-abc", None),
+        ("invalid start and end", "abc-def", None),
+    ];
+
+    for (name, input, expected) in test_data {
+        let msg = format!(
+            "'{}' failed: input = {}, expected = {:?}",
+            name, input, &expected
+        );
+        assert_eq!(parse_usize_range(input, MAX_VAL), expected, "{}", msg);
+    }
+}
+
+#[test]
+fn test_union_valid_usize_ranges() {
+    const MAX_VAL: usize = 10;
+    let test_data = vec![
+        ("simple values", vec!["5", "10"], vec![5, 10]),
+        ("simple value and range", vec!["8", "7-"], vec![7, 8, 9, 10]),
+        ("two ranges", vec!["-3", "7-"], vec![1, 2, 3, 7, 8, 9, 10]),
+    ];
+
+    for (name, input, expected) in test_data {
+        let output = union_usize_ranges(&input, MAX_VAL);
+
+        let msg = format!(
+            "'{}' failed: input = {:?}, expected = {:?}",
+            name, &input, &expected
+        );
+
+        assert!(output.is_ok(), "{}", msg);
+        assert_eq!(output.unwrap(), expected, "{}", msg);
+    }
+}
+
+#[test]
+fn test_union_invalid_usize_ranges() {
+    const MAX_VAL: usize = 10;
+    let test_data = vec![
+        ("invalid simple values", vec!["a", "b"]),
+        ("invalid ranges", vec!["a-", "-b"]),
+    ];
+
+    for (name, input) in test_data {
+        // expected error message
+        let expected_err_msg = input
+            .iter()
+            .map(|v| format!("'{}'", v))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let output = union_usize_ranges(&input, MAX_VAL);
+
+        let assert_msg = format!(
+            "'{}' failed: input = {:?}, expected = {:?}",
+            name, &input, &expected_err_msg
+        );
+
+        assert!(output.is_err(), "{}", assert_msg);
+        let output_err_msg: String = output.unwrap_err().downcast().unwrap();
+        assert_eq!(output_err_msg, expected_err_msg, "{}", assert_msg);
     }
 }
