@@ -19,7 +19,7 @@ After that you will have access to the following sub-commands:
 ```
 $ humble-cli --help
 
-humble-cli 0.3.1
+humble-cli 0.4.0
 The missing Humble Bundle CLI
 
 USAGE:
