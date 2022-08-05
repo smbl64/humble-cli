@@ -3,6 +3,14 @@ The missing CLI for downloading your Humble Bundle purchases!
 
 [![Build status](https://github.com/smbl64/humble-cli/actions/workflows/tests.yml/badge.svg)](https://github.com/smbl64/humble-cli/actions/workflows/tests.yml)
 
+## Features
+- List all your Humble Bundle purchases
+- See contents of each bundle, along with file formats and their size
+- Download items in a bundle, with the option to 
+    - filter them by format (epub, pdf etc.)
+    - filter them by size 
+    - download only selected items (by index)
+
 ## Install
 You can find the binaries in the [Releases][releases] page. Windows, macOS and Linux are supported.
 
