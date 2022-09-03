@@ -24,3 +24,6 @@ serde_json = "1.0"
 tabled = "0.7.0"
 thiserror = "1.0"
 tokio = { version = "1.18", features = ["rt-multi-thread", "macros"] }
+
+[dev-dependencies]
+assert_cmd = "2"
