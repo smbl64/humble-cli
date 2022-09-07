@@ -329,7 +329,8 @@ fn download_bundle(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
         println!();
         println!("{}", product.human_name);
 
-        let entry_dir = bundle_dir.join(&product.human_name);
+        let dir_name = util::replace_invalid_chars_in_filename(&product.human_name);
+        let entry_dir = bundle_dir.join(dir_name);
         if !entry_dir.exists() {
             fs::create_dir(&entry_dir)?;
         }

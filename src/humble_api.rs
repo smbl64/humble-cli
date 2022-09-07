@@ -2,6 +2,7 @@ use reqwest::blocking::Client;
 use serde::Deserialize;
 use std::collections::HashMap;
 use thiserror::Error;
+use serde_with::{serde_as, VecSkipError};
 
 #[derive(Debug, Error)]
 pub enum ApiError {
@@ -14,6 +15,7 @@ pub enum ApiError {
 
 type BundleMap = HashMap<String, Bundle>;
 
+#[serde_as]
 #[derive(Debug, Deserialize)]
 pub struct Bundle {
     pub gamekey: String,
@@ -22,6 +24,7 @@ pub struct Bundle {
     pub details: BundleDetails,
 
     #[serde(rename = "subproducts")]
+    #[serde_as(as = "VecSkipError<_>")]
     pub products: Vec<Product>,
 }
 
