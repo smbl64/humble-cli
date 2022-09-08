@@ -51,5 +51,5 @@ fn product_total_size() {
 
 #[test]
 fn filter_by_total_size() {
-    let product = get_test_product();
+    let _product = get_test_product();
 }
