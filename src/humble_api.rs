@@ -1,8 +1,9 @@
+use futures_util::future;
 use reqwest::blocking::Client;
 use serde::Deserialize;
+use serde_with::{serde_as, VecSkipError};
 use std::collections::HashMap;
 use thiserror::Error;
-use serde_with::{serde_as, VecSkipError};
 
 #[derive(Debug, Error)]
 pub enum ApiError {
@@ -148,9 +149,36 @@ impl HumbleApi {
     }
 
     pub fn list_bundles(&self) -> Result<Vec<Bundle>, ApiError> {
-        let client = Client::new();
+        const CHUNK_SIZE: usize = 10;
+
+        let client = reqwest::Client::new();
         let game_keys = self.list_bundle_keys()?;
-        let query_params: Vec<_> = game_keys.into_iter().map(|key| ("gamekeys", key)).collect();
+
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("cannot build the tokio runtime");
+
+        let futures = game_keys
+            .chunks(CHUNK_SIZE)
+            .map(|keys| self.read_bundles_data(&client, keys));
+
+        // Collect the Vec<Result<_,_>> into Result<Vec<_>, _>. This will automatically stop when an error is seen.
+        // See https://doc.rust-lang.org/rust-by-example/error/iter_result.html#fail-the-entire-operation-with-collect
+        let result: Result<Vec<Vec<Bundle>>, _> = runtime
+            .block_on(future::join_all(futures))
+            .into_iter()
+            .collect();
+
+        Ok(result?.into_iter().flatten().collect())
+    }
+
+    async fn read_bundles_data(
+        &self,
+        client: &reqwest::Client,
+        keys: &[String],
+    ) -> Result<Vec<Bundle>, ApiError> {
+        let query_params: Vec<_> = keys.into_iter().map(|key| ("gamekeys", key)).collect();
 
         let res = client
             .get("https://www.humblebundle.com/api/v1/orders")
@@ -160,10 +188,11 @@ impl HumbleApi {
                 format!("_simpleauth_sess={}", self.auth_key),
             )
             .query(&query_params)
-            .send()?
+            .send()
+            .await?
             .error_for_status()?;
 
-        let product_map = res.json::<BundleMap>()?;
+        let product_map = res.json::<BundleMap>().await?;
         Ok(product_map.into_values().collect())
     }
 
