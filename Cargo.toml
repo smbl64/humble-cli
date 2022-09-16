@@ -14,6 +14,7 @@ name = "humble-cli"
 [dependencies]
 anyhow = "1.0"
 byte-unit = { version = "4.0.14", default-features = false }
+chrono = { version = "0.4.22", features = ["serde"] }
 clap = { version = "3.1", features = ["cargo", "derive"] }
 dirs = "4.0.0"
 futures-util = "0.3.21"

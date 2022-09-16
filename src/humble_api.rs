@@ -4,6 +4,7 @@ use serde::Deserialize;
 use serde_with::{serde_as, VecSkipError};
 use std::collections::HashMap;
 use thiserror::Error;
+use chrono::NaiveDateTime;
 
 #[derive(Debug, Error)]
 pub enum ApiError {
@@ -20,6 +21,7 @@ type BundleMap = HashMap<String, Bundle>;
 #[derive(Debug, Deserialize)]
 pub struct Bundle {
     pub gamekey: String,
+    pub created: NaiveDateTime,
 
     #[serde(rename = "product")]
     pub details: BundleDetails,
