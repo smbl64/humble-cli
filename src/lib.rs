@@ -234,6 +234,7 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
 
     println!();
     println!("{}", bundle.details.human_name);
+    println!("Purchased: {}", bundle.created.format("%v %I:%M %p"));
     println!("Total size: {}", util::humanize_bytes(bundle.total_size()));
     println!();
 
