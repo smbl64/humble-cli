@@ -20,7 +20,7 @@ To start, go to the [Humble Bundle website][hb-site] and log in. Then find the c
 
 See this guide on how to find the cookie value for your browser: [Chrome][guide-chrome], [Firefox][guide-firefox], [Safari][guide-safari].
 
-Use `humble-cli auth <YOUR SESSION KEY>` to store the authentication key locally for other subcommands.
+Use `humble-cli auth "<YOUR SESSION KEY>"` to store the authentication key locally for other subcommands.
 
 After that you will have access to the following sub-commands:
 
