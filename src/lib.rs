@@ -17,7 +17,7 @@ use humble_api::{ApiError, HumbleApi};
 
 pub fn run() -> Result<(), anyhow::Error> {
     let list_subcommand = Command::new("list")
-        .about("List all purchased bundles")
+        .about("List all your purchased bundles")
         .arg(
         Arg::new("id-only")
             .long("id-only")
@@ -53,7 +53,7 @@ pub fn run() -> Result<(), anyhow::Error> {
         );
 
     let download_subcommand = Command::new("download")
-        .about("Download all items in a bundle")
+        .about("Selectively download items from a bundle")
         .arg(
             Arg::new("BUNDLE-KEY")
                 .required(true)
