@@ -27,7 +27,7 @@ After that you will have access to the following sub-commands:
 ```
 $ humble-cli --help
 
-humble-cli 0.7.0
+humble-cli 0.7.1
 The missing Humble Bundle CLI
 
 USAGE:
@@ -40,9 +40,9 @@ OPTIONS:
 SUBCOMMANDS:
     auth        Set the authentication session key
     details     Print details of a certain bundle
-    download    Download all items in a bundle
+    download    Selectively download items from a bundle
     help        Print this message or the help of the given subcommand(s)
-    list        List all purchased bundles
+    list        List all your purchased bundles
 
 Note: `humble-cli -h` prints a short and concise overview while `humble-cli --help` gives all
 details.
