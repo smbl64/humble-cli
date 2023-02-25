@@ -5,6 +5,7 @@ mod key_match;
 pub mod util;
 
 use anyhow::{anyhow, Context};
+use clap::value_parser;
 use clap::{Arg, Command};
 use config::set_config;
 use key_match::KeyMatch;
@@ -25,6 +26,14 @@ pub fn run() -> Result<(), anyhow::Error> {
             .long_help(
                 "Print bundle IDs only. This can be used to chain commands together for automation.",
             ),
+    ).arg(
+        Arg::new("claimed")
+            .long("claimed")
+            .takes_value(true)
+            .possible_values(["all", "yes", "no"])
+            .default_value("all")
+            .value_parser(value_parser!(String))
+            .help("Show claimed or unclaimed bundles only. This is mostly useful if you want to know which games you have not claimed yet.")
     );
 
     let auth_subcommand = Command::new("auth")
@@ -165,10 +174,16 @@ fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error>
 
 fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let id_only = matches.is_present("id-only");
+    // It has a default value, so calling unwrap is safw
+    let claimed_filter = matches.get_one::<String>("claimed").unwrap();
+
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
-    if id_only {
+    // If no filter is required, we can do a single call
+    // and finish quickly. Otherwise we will need to fetch
+    // all bundle data and filter them.
+    if id_only && claimed_filter == "all" {
         let ids = handle_http_errors(api.list_bundle_keys())?;
         for id in ids {
             println!("{}", id);
@@ -177,16 +192,38 @@ fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
         return Ok(());
     }
 
-    let bundles = handle_http_errors(api.list_bundles())?;
+    let mut bundles = handle_http_errors(api.list_bundles())?;
+
+    if claimed_filter != "all" {
+        let claimed = claimed_filter == "yes";
+        bundles = bundles
+            .into_iter()
+            .filter(|b| b.claimed == claimed)
+            .collect();
+    }
+
+    if id_only {
+        for b in bundles {
+            println!("{}", b.gamekey);
+        }
+
+        return Ok(());
+    }
 
     println!("{} bundle(s) found.", bundles.len());
 
-    let mut builder = tabled::builder::Builder::default().set_columns(["Key", "Name", "Size"]);
+    if bundles.len() == 0 {
+        return Ok(());
+    }
+
+    let mut builder =
+        tabled::builder::Builder::default().set_columns(["Key", "Name", "Size", "Claimed"]);
     for p in bundles {
         builder = builder.add_record([
-            &p.gamekey,
-            &p.details.human_name,
-            &util::humanize_bytes(p.total_size()),
+            p.gamekey.as_str(),
+            p.details.human_name.as_str(),
+            util::humanize_bytes(p.total_size()).as_str(),
+            if p.claimed { "Yes" } else { "No" },
         ]);
     }
 
