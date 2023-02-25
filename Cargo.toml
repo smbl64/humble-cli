@@ -8,6 +8,10 @@ repository = "https://github.com/smbl64/humble-cli"
 readme = "README.md"
 categories = ["command-line-utilities"]
 edition = "2021"
+exclude = [
+    "docs",
+    ".github",
+]
 
 [lib]
 path = "src/lib.rs"
