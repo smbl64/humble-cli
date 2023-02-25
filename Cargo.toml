@@ -4,6 +4,7 @@ authors = ["Mohammad Banisaeid <smbl64@gmail.com>"]
 version = "0.7.1"
 license = "MIT"
 description = "The missing CLI for downloading your Humble Bundle purchases"
+documentation = "https://github.com/smbl64/humble-cli"
 repository = "https://github.com/smbl64/humble-cli"
 readme = "README.md"
 categories = ["command-line-utilities"]
