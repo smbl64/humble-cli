@@ -216,12 +216,8 @@ fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
         return Ok(());
     }
 
-    let mut builder = tabled::builder::Builder::default().set_columns([
-        "Key",
-        "Name",
-        "Size",
-        "Claimed",
-    ]);
+    let mut builder =
+        tabled::builder::Builder::default().set_columns(["Key", "Name", "Size", "Claimed"]);
     for p in bundles {
         builder = builder.add_record([
             p.gamekey.as_str(),
@@ -280,43 +276,54 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
     println!("Total size : {}", util::humanize_bytes(bundle.total_size()));
     println!();
 
+    if bundle.products.len() > 0 {
+        let mut builder = tabled::builder::Builder::default();
+        builder = builder.set_columns(["#", "Sub-item", "Format", "Total Size"]);
 
-    let mut builder = tabled::builder::Builder::default();
-    builder = builder.set_columns(["#", "Sub-item", "Format", "Total Size"]);
-
-    for (idx, entry) in bundle.products.iter().enumerate() {
-        builder = builder.add_record([
-            &(idx + 1).to_string(),
-            &entry.human_name,
-            &entry.formats(),
-            &util::humanize_bytes(entry.total_size()),
-        ]);
-    }
-    let table = builder
-        .build()
-        .with(Style::psql())
-        .with(Modify::new(Columns::single(0)).with(Alignment::right()))
-        .with(Modify::new(Columns::single(1)).with(Alignment::left()))
-        .with(Modify::new(Columns::single(2)).with(Alignment::left()))
-        .with(Modify::new(Columns::single(3)).with(Alignment::right()));
-    println!("{table}");
-
-
-    if bundle.has_unused_tpks() {
-        println!("This bundle has keys that can be redeemed:");
-        for name in bundle.unused_tpks_names() {
-            println!(" - {}", name);
+        for (idx, entry) in bundle.products.iter().enumerate() {
+            builder = builder.add_record([
+                &(idx + 1).to_string(),
+                &entry.human_name,
+                &entry.formats(),
+                &util::humanize_bytes(entry.total_size()),
+            ]);
         }
-        println!();
+        let table = builder
+            .build()
+            .with(Style::psql())
+            .with(Modify::new(Columns::single(0)).with(Alignment::right()))
+            .with(Modify::new(Columns::single(1)).with(Alignment::left()))
+            .with(Modify::new(Columns::single(2)).with(Alignment::left()))
+            .with(Modify::new(Columns::single(3)).with(Alignment::right()));
+        println!("{table}");
+    } else {
+        println!("No items to show.");
     }
 
-    let used_keys = bundle.used_tpks_names();
-    if !used_keys.is_empty() {
-        println!("Items that are already redeemed:");
-        for name in used_keys {
-            println!(" - {}", name);
-        }
+    // Product keys
+    let product_keys = bundle.product_keys();
+    if !product_keys.is_empty() {
         println!();
+        println!("Keys in this bundle:");
+        println!();
+        let mut builder = tabled::builder::Builder::default();
+        builder = builder.set_columns(["#", "Key Name", "Redeemed?"]);
+        for (idx, entry) in product_keys.iter().enumerate() {
+            builder = builder.add_record([
+                (idx + 1).to_string().as_str(),
+                entry.human_name.as_str(),
+                if entry.redeemed { "Yes" } else { "No" },
+            ])
+        }
+
+        let table = builder
+            .build()
+            .with(Style::psql())
+            .with(Modify::new(Columns::single(0)).with(Alignment::right()))
+            .with(Modify::new(Columns::single(1)).with(Alignment::left()))
+            .with(Modify::new(Columns::single(2)).with(Alignment::center()));
+
+        println!("{table}");
     }
 
     Ok(())

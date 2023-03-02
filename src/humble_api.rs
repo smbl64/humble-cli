@@ -34,48 +34,39 @@ pub struct Bundle {
     pub products: Vec<Product>,
 }
 
+pub struct ProductKey {
+    pub redeemed: bool,
+    pub human_name: String,
+}
+
 impl Bundle {
     pub fn is_fully_claimed(&self) -> bool {
         self.claimed && !self.has_unused_tpks()
     }
 
     pub fn has_unused_tpks(&self) -> bool {
-        !self.unused_tpks_names().is_empty()
+        self.product_keys().iter().filter(|k| !k.redeemed).count() > 0
     }
 
-    pub fn unused_tpks_names(&self) -> Vec<String> {
+    pub fn product_keys(&self) -> Vec<ProductKey> {
         let Some(tpks) = self.tpkd_dict.get("all_tpks") else {
             return vec![];
         };
-
 
         let tpks = tpks.as_array().expect("cannot read all_tpks");
 
         let mut result = vec![];
         for tpk in tpks {
-            let keyval = tpk["redeemed_key_val"].is_string();
-            if !keyval {
-                result.push(tpk["human_name"].as_str().expect("expected human_name to be a string").to_owned());
-            }
-        }
+            let redeemed = tpk["redeemed_key_val"].is_string();
+            let human_name = tpk["human_name"]
+                .as_str()
+                .expect("expected human_name to be a string")
+                .to_owned();
 
-        result
-    }
-
-    pub fn used_tpks_names(&self) -> Vec<String> {
-        let Some(tpks) = self.tpkd_dict.get("all_tpks") else {
-            return vec![];
-        };
-
-
-        let tpks = tpks.as_array().expect("cannot read all_tpks");
-
-        let mut result = vec![];
-        for tpk in tpks {
-            let keyval = tpk["redeemed_key_val"].is_string();
-            if keyval {
-                result.push(tpk["human_name"].as_str().expect("expected human_name to be a string").to_owned());
-            }
+            result.push(ProductKey {
+                redeemed,
+                human_name,
+            });
         }
 
         result
