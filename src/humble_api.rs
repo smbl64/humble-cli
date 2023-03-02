@@ -24,12 +24,37 @@ pub struct Bundle {
     pub created: NaiveDateTime,
     pub claimed: bool,
 
+    pub tpkd_dict: HashMap<String, serde_json::Value>,
+
     #[serde(rename = "product")]
     pub details: BundleDetails,
 
     #[serde(rename = "subproducts")]
     #[serde_as(as = "VecSkipError<_>")]
     pub products: Vec<Product>,
+}
+
+impl Bundle {
+    pub fn is_fully_claimed(&self) -> bool {
+        self.claimed && !self.has_unused_tpks()
+    }
+
+    pub fn has_unused_tpks(&self) -> bool {
+        let Some(tpks) = self.tpkd_dict.get("all_tpks") else {
+            return false;
+        };
+
+        let tpks = tpks.as_array().expect("cannot read all_tpks");
+
+        for tpk in tpks {
+            let keyval = tpk["redeemed_key_val"].is_string();
+            if !keyval {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -181,7 +206,12 @@ impl HumbleApi {
         client: &reqwest::Client,
         keys: &[String],
     ) -> Result<Vec<Bundle>, ApiError> {
-        let query_params: Vec<_> = keys.into_iter().map(|key| ("gamekeys", key)).collect();
+        let mut query_params: Vec<_> = keys
+            .into_iter()
+            .map(|key| ("gamekeys", key.as_str()))
+            .collect();
+
+        query_params.insert(0, ("all_tpkds", "true"));
 
         let res = client
             .get("https://www.humblebundle.com/api/v1/orders")
@@ -200,7 +230,10 @@ impl HumbleApi {
     }
 
     pub fn read_bundle(&self, product_key: &str) -> Result<Bundle, ApiError> {
-        let url = format!("https://www.humblebundle.com/api/v1/order/{}", product_key);
+        let url = format!(
+            "https://www.humblebundle.com/api/v1/order/{}?all_tpkds=true",
+            product_key
+        );
 
         let client = Client::new();
         let res = client

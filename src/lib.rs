@@ -198,7 +198,7 @@ fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
         let claimed = claimed_filter == "yes";
         bundles = bundles
             .into_iter()
-            .filter(|b| b.claimed == claimed)
+            .filter(|b| b.is_fully_claimed() == claimed)
             .collect();
     }
 
@@ -216,14 +216,18 @@ fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
         return Ok(());
     }
 
-    let mut builder =
-        tabled::builder::Builder::default().set_columns(["Key", "Name", "Size", "Claimed"]);
+    let mut builder = tabled::builder::Builder::default().set_columns([
+        "Key",
+        "Name",
+        "Size",
+        "Claimed",
+    ]);
     for p in bundles {
         builder = builder.add_record([
             p.gamekey.as_str(),
             p.details.human_name.as_str(),
             util::humanize_bytes(p.total_size()).as_str(),
-            if p.claimed { "Yes" } else { "No" },
+            if p.is_fully_claimed() { "Yes" } else { "No" },
         ]);
     }
 
@@ -273,6 +277,11 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
     println!("{}", bundle.details.human_name);
     println!("Purchased: {}", bundle.created.format("%v %I:%M %p"));
     println!("Total size: {}", util::humanize_bytes(bundle.total_size()));
+    println!();
+    if bundle.has_unused_tpks() {
+        println!("This bundle has keys that can be redeemed!");
+    }
+
     println!();
 
     let mut builder = tabled::builder::Builder::default();
