@@ -40,20 +40,26 @@ impl Bundle {
     }
 
     pub fn has_unused_tpks(&self) -> bool {
+        !self.unused_tpks_names().is_empty()
+    }
+
+    pub fn unused_tpks_names(&self) -> Vec<String> {
         let Some(tpks) = self.tpkd_dict.get("all_tpks") else {
-            return false;
+            return vec![];
         };
+
 
         let tpks = tpks.as_array().expect("cannot read all_tpks");
 
+        let mut result = vec![];
         for tpk in tpks {
             let keyval = tpk["redeemed_key_val"].is_string();
             if !keyval {
-                return true;
+                result.push(tpk["human_name"].as_str().expect("expected human_name to be a string").to_owned());
             }
         }
 
-        return false;
+        result
     }
 }
 

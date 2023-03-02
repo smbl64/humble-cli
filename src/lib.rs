@@ -275,14 +275,11 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
 
     println!();
     println!("{}", bundle.details.human_name);
-    println!("Purchased: {}", bundle.created.format("%v %I:%M %p"));
-    println!("Total size: {}", util::humanize_bytes(bundle.total_size()));
     println!();
-    if bundle.has_unused_tpks() {
-        println!("This bundle has keys that can be redeemed!");
-    }
+    println!("Purchased  : {}", bundle.created.format("%v %I:%M %p"));
+    println!("Total size : {}", util::humanize_bytes(bundle.total_size()));
+    println!();
 
-    println!();
 
     let mut builder = tabled::builder::Builder::default();
     builder = builder.set_columns(["#", "Sub-item", "Format", "Total Size"]);
@@ -303,6 +300,14 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
         .with(Modify::new(Columns::single(2)).with(Alignment::left()))
         .with(Modify::new(Columns::single(3)).with(Alignment::right()));
     println!("{table}");
+
+    if bundle.has_unused_tpks() {
+        println!("This bundle has keys that can be redeemed!");
+        for name in bundle.unused_tpks_names() {
+            println!(" - {}", name);
+        }
+        println!();
+    }
 
     Ok(())
 }
