@@ -301,9 +301,19 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
         .with(Modify::new(Columns::single(3)).with(Alignment::right()));
     println!("{table}");
 
+
     if bundle.has_unused_tpks() {
-        println!("This bundle has keys that can be redeemed!");
+        println!("This bundle has keys that can be redeemed:");
         for name in bundle.unused_tpks_names() {
+            println!(" - {}", name);
+        }
+        println!();
+    }
+
+    let used_keys = bundle.used_tpks_names();
+    if !used_keys.is_empty() {
+        println!("Items that are already redeemed:");
+        for name in used_keys {
             println!(" - {}", name);
         }
         println!();
