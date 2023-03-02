@@ -308,12 +308,18 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
         println!();
         let mut builder = tabled::builder::Builder::default();
         builder = builder.set_columns(["#", "Key Name", "Redeemed?"]);
+
+        let mut all_redeemed = true;
         for (idx, entry) in product_keys.iter().enumerate() {
             builder = builder.add_record([
                 (idx + 1).to_string().as_str(),
                 entry.human_name.as_str(),
                 if entry.redeemed { "Yes" } else { "No" },
-            ])
+            ]);
+
+            if !entry.redeemed {
+                all_redeemed = false;
+            }
         }
 
         let table = builder
@@ -324,6 +330,11 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
             .with(Modify::new(Columns::single(2)).with(Alignment::center()));
 
         println!("{table}");
+
+        if !all_redeemed {
+            let url = "https://www.humblebundle.com/home/keys";
+            println!("Visit {url} to redeem your keys.");
+        }
     }
 
     Ok(())
