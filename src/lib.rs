@@ -2,6 +2,7 @@ mod config;
 pub mod download;
 pub mod humble_api;
 mod key_match;
+mod models;
 pub mod util;
 
 use anyhow::{anyhow, Context};
@@ -180,6 +181,10 @@ fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
+    api.get_bundle_choices()?;
+    if true {
+        return Ok(());
+    }
     // If no filter is required, we can do a single call
     // and finish quickly. Otherwise we will need to fetch
     // all bundle data and filter them.

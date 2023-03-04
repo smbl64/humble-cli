@@ -2,7 +2,6 @@ use crate::models::*;
 use futures_util::future;
 use reqwest::blocking::Client;
 use scraper::Selector;
-use serde_json::Value;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -10,8 +9,12 @@ pub enum ApiError {
     #[error(transparent)]
     NetworkError(#[from] reqwest::Error),
 
-    #[error("Cannot parse the response")]
-    DeserializeFailed,
+    // #[error("cannot parse the response")]
+    #[error(transparent)]
+    DeserializeError(#[from] serde_json::Error),
+
+    #[error("cannot find any data")]
+    BundleNotFound,
 }
 
 pub struct HumbleApi {
@@ -117,7 +120,44 @@ impl HumbleApi {
             .send()?
             .error_for_status()?;
 
-        res.json::<Bundle>()
-            .map_err(|_| ApiError::DeserializeFailed)
+        res.json::<Bundle>().map_err(|e| e.into())
+    }
+
+    pub fn get_bundle_choices(&self) -> Result<HumbleChoice, ApiError> {
+        // Note: "home" can be replaced with "month-year". For example "october-2022".
+        let url = "https://www.humblebundle.com/membership/home";
+
+        let client = Client::new();
+        let res = client
+            .get(url)
+            .header(
+                "cookie".to_owned(),
+                format!("_simpleauth_sess={}", self.auth_key),
+            )
+            .send()?
+            .error_for_status()?;
+
+        let html = res.text()?;
+        self.parse_bundle_choices(&html)
+    }
+
+    fn parse_bundle_choices(&self, html: &str) -> Result<HumbleChoice, ApiError> {
+        let document = scraper::html::Html::parse_document(html);
+        // One of these two CSS IDs will match. First one is for the active
+        // month, while the second is for previous months.
+        let sel = Selector::parse(
+            "script#webpack-subscriber-hub-data, script#webpack-monthly-product-data",
+        )
+        .unwrap();
+
+        let scripts: Vec<_> = document.select(&sel).collect();
+        if scripts.len() != 1 {
+            return Err(ApiError::BundleNotFound);
+        }
+
+        let script = scripts.get(0).unwrap();
+        let txt = script.inner_html();
+        let obj: HumbleChoice = serde_json::from_str(&txt)?;
+        Ok(obj)
     }
 }

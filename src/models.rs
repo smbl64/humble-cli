@@ -6,6 +6,9 @@ use serde_with::{serde_as, VecSkipError};
 
 pub type BundleMap = HashMap<String, Bundle>;
 
+// ===========================================================================
+// Models related to the purchased Bundles
+// ===========================================================================
 #[serde_as]
 #[derive(Debug, Deserialize)]
 pub struct Bundle {
@@ -146,4 +149,44 @@ pub struct DownloadUrl {
 #[derive(Debug, Deserialize)]
 pub struct GameKey {
     pub gamekey: String,
+}
+
+// ===========================================================================
+// Models related to the Bundle Choices
+// ===========================================================================
+#[derive(Debug, Deserialize)]
+pub struct HumbleChoice {
+    #[serde(rename = "contentChoiceOptions")]
+    pub content_choice_options: ContentChoiceOptions,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ContentChoiceOptions {
+    #[serde(rename = "contentChoiceData")]
+    pub content_choice_data: ContentChoiceData,
+
+    pub gamekey: Option<String>,
+
+    #[serde(rename = "isActiveContent")]
+    pub is_active_content: bool,
+
+    pub title: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ContentChoiceData {
+    pub game_data: HashMap<String, GameData>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GameData {
+    pub title: String,
+    pub tpkds: Vec<Tpkd>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Tpkd {
+    pub gamekey: Option<String>,
+    pub human_name: String,
+    pub redeemed_key_val: Option<String>,
 }
