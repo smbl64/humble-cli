@@ -5,18 +5,6 @@ mod key_match;
 mod models;
 mod util;
 
-use anyhow::{anyhow, Context};
-use config::set_config;
-use key_match::KeyMatch;
-use std::fs;
-use std::path;
-use tabled::{object::Columns, Alignment, Modify, Style};
-
-pub use config::{get_config, Config};
-use humble_api::{ApiError, HumbleApi};
-
-use crate::models::ClaimStatus;
-
 pub mod prelude {
     pub use crate::auth;
     pub use crate::download_bundle;
@@ -28,6 +16,15 @@ pub mod prelude {
     pub use crate::models::*;
     pub use crate::util::byte_string_to_number;
 }
+
+use crate::models::ClaimStatus;
+use anyhow::{anyhow, Context};
+use config::{get_config, set_config, Config};
+use humble_api::{ApiError, HumbleApi};
+use key_match::KeyMatch;
+use std::fs;
+use std::path;
+use tabled::{object::Columns, Alignment, Modify, Style};
 
 pub fn auth(session_key: &str) -> Result<(), anyhow::Error> {
     set_config(Config {
