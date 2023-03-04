@@ -81,7 +81,7 @@ impl HumbleApi {
         keys: &[String],
     ) -> Result<Vec<Bundle>, ApiError> {
         let mut query_params: Vec<_> = keys
-            .into_iter()
+            .iter()
             .map(|key| ("gamekeys", key.as_str()))
             .collect();
 

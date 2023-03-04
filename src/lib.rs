@@ -117,13 +117,10 @@ pub fn list_bundles(id_only: bool, claimed_filter: &str) -> Result<(), anyhow::E
 
     if claimed_filter != "all" {
         let claimed = claimed_filter == "yes";
-        bundles = bundles
-            .into_iter()
-            .filter(|b| {
+        bundles.retain(|b| {
                 let status = b.claim_status();
                 status == ClaimStatus::Yes && claimed || status == ClaimStatus::No && !claimed
-            })
-            .collect();
+            });
     }
 
     if id_only {
@@ -136,7 +133,7 @@ pub fn list_bundles(id_only: bool, claimed_filter: &str) -> Result<(), anyhow::E
 
     println!("{} bundle(s) found.", bundles.len());
 
-    if bundles.len() == 0 {
+    if bundles.is_empty() {
         return Ok(());
     }
 
@@ -199,7 +196,7 @@ pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
     println!("Total size : {}", util::humanize_bytes(bundle.total_size()));
     println!();
 
-    if bundle.products.len() > 0 {
+    if !bundle.products.is_empty() {
         let mut builder = tabled::builder::Builder::default();
         builder = builder.set_columns(["#", "Sub-item", "Format", "Total Size"]);
 

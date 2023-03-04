@@ -26,14 +26,14 @@ fn get_test_product() -> Product {
         items: vec![dl1, dl2],
     };
 
-    let product = Product {
+    
+
+    Product {
         machine_name: "some-book".to_string(),
         human_name: "Some Book".to_string(),
         product_details_url: "".to_string(),
         downloads: vec![dl_entry],
-    };
-
-    product
+    }
 }
 
 #[test]
