@@ -1,13 +1,11 @@
 mod config;
-pub mod download;
-pub mod humble_api;
+mod download;
+mod humble_api;
 mod key_match;
-pub mod models;
-pub mod util;
+mod models;
+mod util;
 
 use anyhow::{anyhow, Context};
-use clap::value_parser;
-use clap::{Arg, Command};
 use config::set_config;
 use key_match::KeyMatch;
 use std::fs;
@@ -19,142 +17,18 @@ use humble_api::{ApiError, HumbleApi};
 
 use crate::models::ClaimStatus;
 
-pub fn run() -> Result<(), anyhow::Error> {
-    let list_subcommand = Command::new("list")
-        .about("List all your purchased bundles")
-        .arg(
-        Arg::new("id-only")
-            .long("id-only")
-            .help("Print bundle IDs only")
-            .long_help(
-                "Print bundle IDs only. This can be used to chain commands together for automation.",
-            ),
-    ).arg(
-        Arg::new("claimed")
-            .long("claimed")
-            .takes_value(true)
-            .possible_values(["all", "yes", "no"])
-            .default_value("all")
-            .value_parser(value_parser!(String))
-            .help("Show claimed or unclaimed bundles only. This is mostly useful if you want to know which games you have not claimed yet.")
-    );
+pub mod prelude {
+    pub use crate::auth;
+    pub use crate::download_bundle;
+    pub use crate::list_bundles;
+    pub use crate::list_humble_choices;
+    pub use crate::show_bundle_details;
 
-    let list_choices_subcommand =
-        Command::new("list-choices").about("List your current Humble Choices");
-
-    let auth_subcommand = Command::new("auth")
-        .about("Set the authentication session key")
-        .long_about(
-            "Set the session key used for authentication with Humble Bundle API. \
-            See online documentation on how to find the session key from your web browser.",
-        )
-        .arg(
-            Arg::new("SESSION-KEY")
-                .required(true)
-                .takes_value(true)
-                .help("Session key that's copied from your web browser"),
-        );
-
-    let details_subcommand = Command::new("details")
-        .about("Print details of a certain bundle")
-        .arg(
-            Arg::new("BUNDLE-KEY")
-                .required(true)
-                .takes_value(true)
-                .help("The key for the bundle which must be shown")
-                .long_help(
-                    "The key for the bundle which must be shown. It can be partially entered.",
-                ),
-        );
-
-    let download_subcommand = Command::new("download")
-        .about("Selectively download items from a bundle")
-        .arg(
-            Arg::new("BUNDLE-KEY")
-                .required(true)
-                .help("The key for the bundle which must be downloaded")
-                .long_help(
-                    "The key for the bundle which must be downloaded. It can be partially entered."
-                )
-        )
-        .arg(
-            Arg::new("item-numbers")
-            .short('i')
-            .long("item-numbers")
-            .takes_value(true)
-            .help("Download only specified items")
-            .long_help(
-                "Download only specified items. This is a comman-separated list of item numbers to download. \
-                Item numbers begin from 1 and can be a single number or a range.\n\
-                Some examples:\n\n\
-                '--item-numbers 1,3,5' will download items 1, 3, and 5.\n\
-                '--item number 5-10' will download items 5 to 10 (inclusive)\n\n\
-                When specifying ranges, either the beginning or the end of the range can be omitted.\n\
-                For example, '--item-numbers 10-' will download items 10 to the end.
-                "
-            )
-        )
-        .arg(
-            Arg::new("format")
-                .short('f')
-                .long("format")
-                .takes_value(true)
-                .multiple_occurrences(true)
-                .help("Filter downloaded items by their format")
-                .long_help(
-                    "Filter downloaded files by their format. Formats are case-insensitive and \
-                    this filter can be used several times to specify multiple formats.\n\n\
-                    For example: --filter-by-format epub --filter-by-format mobi"
-                )
-        )
-        .arg(
-            Arg::new("max-size")
-                .short('s')
-                .long("max-size")
-                .takes_value(true)
-                .help("Filter downloaded items by their maximum size")
-                .long_help(
-                    "Filter downloaded items by their maximum size. This will skip any sub-item in a bundle \
-                    that exceeds this limit. \
-                    You can use the traditional size units such as KB or MiB. Make sure there is no space \
-                    between the number and the unit. For example 14MB or 4GiB.\n\n\
-                    Note: The size limit works on a sub-item level, and not per file. \
-                    For example, if you specify a limit of 10 MB and a sub-item has two 6 MB books in it, \
-                    this sub-items will not be downloaded, because its total size exceeds the 10 MB limit (12 MB in total)."
-                    )
-        );
-
-    let sub_commands = vec![
-        auth_subcommand,
-        list_subcommand,
-        list_choices_subcommand,
-        details_subcommand,
-        download_subcommand,
-    ];
-
-    let crate_name = clap::crate_name!();
-
-    let matches = clap::Command::new(crate_name)
-        .about("The missing Humble Bundle CLI")
-        .version(clap::crate_version!())
-        .after_help("Note: `humble-cli -h` prints a short and concise overview while `humble-cli --help` gives all details.")
-        .subcommand_required(true)
-        .arg_required_else_help(true)
-        .subcommands(sub_commands)
-        .get_matches();
-
-    return match matches.subcommand() {
-        Some(("auth", sub_matches)) => auth(sub_matches),
-        Some(("details", sub_matches)) => show_bundle_details(sub_matches),
-        Some(("download", sub_matches)) => download_bundle(sub_matches),
-        Some(("list", sub_matches)) => list_bundles(sub_matches),
-        Some(("list-choices", sub_matches)) => list_humble_choices(sub_matches),
-        // This shouldn't happen
-        _ => Ok(()),
-    };
+    pub use crate::humble_api::{ApiError, HumbleApi};
+    pub use crate::models::*;
 }
 
-fn auth(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+pub fn auth(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let session_key = matches.value_of("SESSION-KEY").unwrap();
 
     set_config(Config {
@@ -162,7 +36,7 @@ fn auth(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     })
 }
 
-fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error> {
+pub fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error> {
     match input {
         Ok(val) => Ok(val),
         Err(ApiError::NetworkError(e)) if e.is_status() => {
@@ -180,7 +54,7 @@ fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error>
     }
 }
 
-fn list_humble_choices(_matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+pub fn list_humble_choices(_matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
@@ -227,10 +101,12 @@ fn list_humble_choices(_matches: &clap::ArgMatches) -> Result<(), anyhow::Error>
     Ok(())
 }
 
-fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+pub fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let id_only = matches.is_present("id-only");
-    // It has a default value, so calling unwrap is safw
-    let claimed_filter = matches.get_one::<String>("claimed").unwrap();
+    let claimed_filter = matches
+        .get_one::<String>("claimed")
+        .map(String::as_str)
+        .unwrap_or("all");
 
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
@@ -315,7 +191,7 @@ fn find_key(all_keys: Vec<String>, key_to_find: &str) -> Option<String> {
     }
 }
 
-fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+pub fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let config = get_config()?;
     let bundle_key = matches.value_of("BUNDLE-KEY").unwrap();
     let api = crate::HumbleApi::new(&config.session_key);
@@ -398,7 +274,7 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
     Ok(())
 }
 
-fn download_bundle(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+pub fn download_bundle(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let config = get_config()?;
     let bundle_key = matches.value_of("BUNDLE-KEY").unwrap();
     let formats = if let Some(values) = matches.values_of("format") {
