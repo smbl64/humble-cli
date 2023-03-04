@@ -123,9 +123,9 @@ impl HumbleApi {
         res.json::<Bundle>().map_err(|e| e.into())
     }
 
-    pub fn get_bundle_choices(&self) -> Result<HumbleChoice, ApiError> {
+    pub fn read_bundle_choices(&self) -> Result<HumbleChoice, ApiError> {
         // Note: "home" can be replaced with "month-year". For example "october-2022".
-        let url = "https://www.humblebundle.com/membership/home";
+        let url = "https://www.humblebundle.com/membership/january-2023";
 
         let client = Client::new();
         let res = client

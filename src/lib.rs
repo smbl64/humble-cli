@@ -37,6 +37,9 @@ pub fn run() -> Result<(), anyhow::Error> {
             .help("Show claimed or unclaimed bundles only. This is mostly useful if you want to know which games you have not claimed yet.")
     );
 
+    let list_choices_subcommand =
+        Command::new("list-choices").about("List your current Humble Choices");
+
     let auth_subcommand = Command::new("auth")
         .about("Set the authentication session key")
         .long_about(
@@ -122,6 +125,7 @@ pub fn run() -> Result<(), anyhow::Error> {
     let sub_commands = vec![
         auth_subcommand,
         list_subcommand,
+        list_choices_subcommand,
         details_subcommand,
         download_subcommand,
     ];
@@ -142,6 +146,7 @@ pub fn run() -> Result<(), anyhow::Error> {
         Some(("details", sub_matches)) => show_bundle_details(sub_matches),
         Some(("download", sub_matches)) => download_bundle(sub_matches),
         Some(("list", sub_matches)) => list_bundles(sub_matches),
+        Some(("list-choices", sub_matches)) => list_humble_choices(sub_matches),
         // This shouldn't happen
         _ => Ok(()),
     };
@@ -173,6 +178,49 @@ fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error>
     }
 }
 
+fn list_humble_choices(_matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+    let config = get_config()?;
+    let api = HumbleApi::new(&config.session_key);
+
+    let choices = api.read_bundle_choices()?;
+    // if !choices.options.is_active_content {
+    //     // TODO
+    //     return Ok(());
+    // }
+
+    println!();
+    println!("{}", choices.options.title);
+    println!();
+
+    let options = choices.options;
+
+    let mut builder = tabled::builder::Builder::default().set_columns(["#", "Title", "Redeemed"]);
+
+    let mut counter = 1;
+    for (_, game_data) in options.data.game_data.iter() {
+        for tpkd in game_data.tpkds.iter() {
+            let redeemed = tpkd.redeemed_key_val.is_some();
+
+            builder = builder.add_record([
+                counter.to_string().as_str(),
+                tpkd.human_name.as_str(),
+                if redeemed { "Yes" } else { "No" },
+            ]);
+
+            counter += 1;
+        }
+    }
+
+    let table = builder
+        .build()
+        .with(Style::psql())
+        .with(Modify::new(Columns::single(0)).with(Alignment::right()))
+        .with(Modify::new(Columns::single(1)).with(Alignment::left()));
+    println!("{table}");
+
+    Ok(())
+}
+
 fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let id_only = matches.is_present("id-only");
     // It has a default value, so calling unwrap is safw
@@ -181,10 +229,6 @@ fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
-    api.get_bundle_choices()?;
-    if true {
-        return Ok(());
-    }
     // If no filter is required, we can do a single call
     // and finish quickly. Otherwise we will need to fetch
     // all bundle data and filter them.

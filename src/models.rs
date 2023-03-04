@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use chrono::NaiveDateTime;
 use serde::Deserialize;
@@ -157,13 +157,13 @@ pub struct GameKey {
 #[derive(Debug, Deserialize)]
 pub struct HumbleChoice {
     #[serde(rename = "contentChoiceOptions")]
-    pub content_choice_options: ContentChoiceOptions,
+    pub options: ContentChoiceOptions,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ContentChoiceOptions {
     #[serde(rename = "contentChoiceData")]
-    pub content_choice_data: ContentChoiceData,
+    pub data: ContentChoiceData,
 
     pub gamekey: Option<String>,
 
@@ -175,7 +175,7 @@ pub struct ContentChoiceOptions {
 
 #[derive(Debug, Deserialize)]
 pub struct ContentChoiceData {
-    pub game_data: HashMap<String, GameData>,
+    pub game_data: BTreeMap<String, GameData>,
 }
 
 #[derive(Debug, Deserialize)]
