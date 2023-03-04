@@ -1,3 +1,4 @@
+use anyhow::Context;
 use clap::{value_parser, Arg, Command};
 use humble_cli::prelude::*;
 
@@ -22,11 +23,16 @@ fn run() -> Result<(), anyhow::Error> {
     ).arg(
         Arg::new("claimed")
             .long("claimed")
+            .value_name("value")
             .takes_value(true)
             .possible_values(["all", "yes", "no"])
             .default_value("all")
             .value_parser(value_parser!(String))
-            .help("Show claimed or unclaimed bundles only. This is mostly useful if you want to know which games you have not claimed yet.")
+            .help("Show claimed or unclaimed bundles only")
+            .long_help(
+                "Show claimed or unclaimed bundles only. \
+                    This is useful if you want to know which games or bundles you have not claimed yet."
+            )
     );
 
     let list_choices_subcommand =
@@ -134,11 +140,39 @@ fn run() -> Result<(), anyhow::Error> {
         .get_matches();
 
     return match matches.subcommand() {
-        Some(("auth", sub_matches)) => auth(sub_matches),
-        Some(("details", sub_matches)) => show_bundle_details(sub_matches),
-        Some(("download", sub_matches)) => download_bundle(sub_matches),
-        Some(("list", sub_matches)) => list_bundles(sub_matches),
-        Some(("list-choices", sub_matches)) => list_humble_choices(sub_matches),
+        Some(("auth", sub_matches)) => {
+            let session_key = sub_matches.value_of("SESSION-KEY").unwrap();
+            auth(session_key)
+        }
+        Some(("details", sub_matches)) => {
+            let bundle_key = sub_matches.value_of("BUNDLE-KEY").unwrap();
+            show_bundle_details(bundle_key)
+        }
+        Some(("download", sub_matches)) => {
+            let bundle_key = sub_matches.value_of("BUNDLE-KEY").unwrap();
+            let formats = if let Some(values) = matches.values_of("format") {
+                values.map(|f| f.to_lowercase()).collect::<Vec<_>>()
+            } else {
+                vec![]
+            };
+            let max_size: u64 = if let Some(byte_str) = matches.value_of("max-size") {
+                byte_string_to_number(byte_str)
+                    .context(format!("failed to parse the specified size: {}", byte_str))?
+            } else {
+                0
+            };
+            let item_numbers = matches.value_of("item-numbers");
+            download_bundle(bundle_key, formats, max_size, item_numbers)
+        }
+        Some(("list", sub_matches)) => {
+            let id_only = sub_matches.is_present("id-only");
+            let claimed_filter = sub_matches
+                .get_one::<String>("claimed")
+                .map(String::as_str)
+                .unwrap_or("all");
+            list_bundles(id_only, claimed_filter)
+        }
+        Some(("list-choices", _)) => list_humble_choices(),
         // This shouldn't happen
         _ => Ok(()),
     };

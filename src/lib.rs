@@ -26,11 +26,10 @@ pub mod prelude {
 
     pub use crate::humble_api::{ApiError, HumbleApi};
     pub use crate::models::*;
+    pub use crate::util::byte_string_to_number;
 }
 
-pub fn auth(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
-    let session_key = matches.value_of("SESSION-KEY").unwrap();
-
+pub fn auth(session_key: &str) -> Result<(), anyhow::Error> {
     set_config(Config {
         session_key: session_key.to_owned(),
     })
@@ -54,7 +53,7 @@ pub fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Er
     }
 }
 
-pub fn list_humble_choices(_matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+pub fn list_humble_choices() -> Result<(), anyhow::Error> {
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
@@ -101,13 +100,7 @@ pub fn list_humble_choices(_matches: &clap::ArgMatches) -> Result<(), anyhow::Er
     Ok(())
 }
 
-pub fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
-    let id_only = matches.is_present("id-only");
-    let claimed_filter = matches
-        .get_one::<String>("claimed")
-        .map(String::as_str)
-        .unwrap_or("all");
-
+pub fn list_bundles(id_only: bool, claimed_filter: &str) -> Result<(), anyhow::Error> {
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
@@ -191,9 +184,8 @@ fn find_key(all_keys: Vec<String>, key_to_find: &str) -> Option<String> {
     }
 }
 
-pub fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
     let config = get_config()?;
-    let bundle_key = matches.value_of("BUNDLE-KEY").unwrap();
     let api = crate::HumbleApi::new(&config.session_key);
 
     let bundle_key = match find_key(handle_http_errors(api.list_bundle_keys())?, bundle_key) {
@@ -274,21 +266,13 @@ pub fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Err
     Ok(())
 }
 
-pub fn download_bundle(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+pub fn download_bundle(
+    bundle_key: &str,
+    formats: Vec<String>,
+    max_size: u64,
+    item_numbers: Option<&str>,
+) -> Result<(), anyhow::Error> {
     let config = get_config()?;
-    let bundle_key = matches.value_of("BUNDLE-KEY").unwrap();
-    let formats = if let Some(values) = matches.values_of("format") {
-        values.map(|f| f.to_lowercase()).collect::<Vec<_>>()
-    } else {
-        vec![]
-    };
-
-    let max_size: u64 = if let Some(byte_str) = matches.value_of("max-size") {
-        util::byte_string_to_number(byte_str)
-            .context(format!("failed to parse the specified size: {}", byte_str))?
-    } else {
-        0
-    };
 
     let api = crate::HumbleApi::new(&config.session_key);
 
@@ -302,7 +286,7 @@ pub fn download_bundle(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
     // To parse the item number ranges, we need to know the max value
     // for unbounded ranges (e.g. 12-). That's why we parse this argument
     // after we read the bundle from the API.
-    let item_numbers = if let Some(value) = matches.value_of("item-numbers") {
+    let item_numbers = if let Some(value) = item_numbers {
         let ranges = value.split(',').collect::<Vec<_>>();
         util::union_usize_ranges(&ranges, bundle.products.len())?
     } else {
