@@ -2,7 +2,7 @@ mod config;
 pub mod download;
 pub mod humble_api;
 mod key_match;
-mod models;
+pub mod models;
 pub mod util;
 
 use anyhow::{anyhow, Context};

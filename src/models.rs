@@ -65,10 +65,6 @@ impl Bundle {
         }
     }
 
-    pub fn has_unused_tpks(&self) -> bool {
-        self.product_keys().iter().filter(|k| !k.redeemed).count() > 0
-    }
-
     pub fn product_keys(&self) -> Vec<ProductKey> {
         let Some(tpks) = self.tpkd_dict.get("all_tpks") else {
             return vec![];

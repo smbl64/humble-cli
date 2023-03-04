@@ -1,4 +1,4 @@
-use humble_cli::humble_api::*;
+use humble_cli::models::*;
 
 fn new_download_url(web_url: &str) -> DownloadUrl {
     DownloadUrl {
