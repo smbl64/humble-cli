@@ -184,7 +184,7 @@ fn list_humble_choices(_matches: &clap::ArgMatches) -> Result<(), anyhow::Error>
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
-    let choices = api.read_bundle_choices("JANUARY-2023")?;
+    let choices = api.read_bundle_choices("home")?;
 
     println!();
     println!("{}", choices.options.title);
@@ -195,6 +195,7 @@ fn list_humble_choices(_matches: &clap::ArgMatches) -> Result<(), anyhow::Error>
     let mut builder = tabled::builder::Builder::default().set_columns(["#", "Title", "Redeemed"]);
 
     let mut counter = 1;
+    let mut all_redeemed = true;
     for (_, game_data) in options.data.game_data.iter() {
         for tpkd in game_data.tpkds.iter() {
             builder = builder.add_record([
@@ -204,6 +205,10 @@ fn list_humble_choices(_matches: &clap::ArgMatches) -> Result<(), anyhow::Error>
             ]);
 
             counter += 1;
+
+            if tpkd.claim_status() == ClaimStatus::No {
+                all_redeemed = false;
+            }
         }
     }
 
@@ -215,6 +220,10 @@ fn list_humble_choices(_matches: &clap::ArgMatches) -> Result<(), anyhow::Error>
 
     println!("{table}");
 
+    if !all_redeemed {
+        let url = "https://www.humblebundle.com/membership/home";
+        println!("Visit {url} to redeem your keys.");
+    }
     Ok(())
 }
 
