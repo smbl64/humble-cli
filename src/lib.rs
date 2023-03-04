@@ -17,6 +17,8 @@ use tabled::{object::Columns, Alignment, Modify, Style};
 pub use config::{get_config, Config};
 use humble_api::{ApiError, HumbleApi};
 
+use crate::models::ClaimStatus;
+
 pub fn run() -> Result<(), anyhow::Error> {
     let list_subcommand = Command::new("list")
         .about("List all your purchased bundles")
@@ -182,7 +184,7 @@ fn list_humble_choices(_matches: &clap::ArgMatches) -> Result<(), anyhow::Error>
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
-    let choices = api.read_bundle_choices("home")?;
+    let choices = api.read_bundle_choices("JANUARY-2023")?;
 
     println!();
     println!("{}", choices.options.title);
@@ -195,21 +197,10 @@ fn list_humble_choices(_matches: &clap::ArgMatches) -> Result<(), anyhow::Error>
     let mut counter = 1;
     for (_, game_data) in options.data.game_data.iter() {
         for tpkd in game_data.tpkds.iter() {
-            let redeemed = tpkd.redeemed_key_val.is_some();
-            let is_active = tpkd.gamekey.is_some();
-
-            let redeem_title = if is_active && redeemed {
-                "Yes"
-            } else if is_active {
-                "No"
-            } else {
-                "N/A" // User didn't own it
-            };
-
             builder = builder.add_record([
                 counter.to_string().as_str(),
                 tpkd.human_name.as_str(),
-                redeem_title,
+                tpkd.claim_status().to_string().as_str(),
             ]);
 
             counter += 1;
@@ -221,6 +212,7 @@ fn list_humble_choices(_matches: &clap::ArgMatches) -> Result<(), anyhow::Error>
         .with(Style::psql())
         .with(Modify::new(Columns::single(0)).with(Alignment::right()))
         .with(Modify::new(Columns::single(1)).with(Alignment::left()));
+
     println!("{table}");
 
     Ok(())
@@ -252,7 +244,10 @@ fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
         let claimed = claimed_filter == "yes";
         bundles = bundles
             .into_iter()
-            .filter(|b| b.is_fully_claimed() == claimed)
+            .filter(|b| {
+                let status = b.claim_status();
+                status == ClaimStatus::Yes && claimed || status == ClaimStatus::No && !claimed
+            })
             .collect();
     }
 
@@ -277,7 +272,7 @@ fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
             p.gamekey.as_str(),
             p.details.human_name.as_str(),
             util::humanize_bytes(p.total_size()).as_str(),
-            if p.is_fully_claimed() { "Yes" } else { "No" },
+            p.claim_status().to_string().as_str(),
         ]);
     }
 
@@ -361,7 +356,7 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
         println!("Keys in this bundle:");
         println!();
         let mut builder = tabled::builder::Builder::default();
-        builder = builder.set_columns(["#", "Key Name", "Redeemed?"]);
+        builder = builder.set_columns(["#", "Key Name", "Redeemed"]);
 
         let mut all_redeemed = true;
         for (idx, entry) in product_keys.iter().enumerate() {

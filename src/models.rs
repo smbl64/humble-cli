@@ -4,11 +4,29 @@ use chrono::NaiveDateTime;
 use serde::Deserialize;
 use serde_with::{serde_as, VecSkipError};
 
-pub type BundleMap = HashMap<String, Bundle>;
+#[derive(Debug, PartialEq)]
+pub enum ClaimStatus {
+    Yes,
+    No,
+    NotAvailable,
+}
+
+impl ToString for ClaimStatus {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Yes => "Yes",
+            Self::No => "No",
+            Self::NotAvailable => "-",
+        }
+        .to_owned()
+    }
+}
 
 // ===========================================================================
 // Models related to the purchased Bundles
 // ===========================================================================
+pub type BundleMap = HashMap<String, Bundle>;
+
 #[serde_as]
 #[derive(Debug, Deserialize)]
 pub struct Bundle {
@@ -32,8 +50,19 @@ pub struct ProductKey {
 }
 
 impl Bundle {
-    pub fn is_fully_claimed(&self) -> bool {
-        self.claimed && !self.has_unused_tpks()
+    pub fn claim_status(&self) -> ClaimStatus {
+        let product_keys = self.product_keys();
+        let total_count = product_keys.len();
+        if total_count == 0 {
+            return ClaimStatus::NotAvailable;
+        }
+
+        let unused_count = product_keys.iter().filter(|k| !k.redeemed).count();
+        if unused_count > 0 {
+            ClaimStatus::No
+        } else {
+            ClaimStatus::Yes
+        }
     }
 
     pub fn has_unused_tpks(&self) -> bool {
@@ -189,4 +218,18 @@ pub struct Tpkd {
     pub gamekey: Option<String>,
     pub human_name: String,
     pub redeemed_key_val: Option<String>,
+}
+
+impl Tpkd {
+    pub fn claim_status(&self) -> ClaimStatus {
+        let redeemed = self.redeemed_key_val.is_some();
+        let is_active = self.gamekey.is_some();
+        if is_active && redeemed {
+            ClaimStatus::Yes
+        } else if is_active {
+            ClaimStatus::No
+        } else {
+            ClaimStatus::NotAvailable
+        }
+    }
 }
