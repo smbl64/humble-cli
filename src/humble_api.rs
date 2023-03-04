@@ -123,9 +123,12 @@ impl HumbleApi {
         res.json::<Bundle>().map_err(|e| e.into())
     }
 
-    pub fn read_bundle_choices(&self) -> Result<HumbleChoice, ApiError> {
-        // Note: "home" can be replaced with "month-year". For example "october-2022".
-        let url = "https://www.humblebundle.com/membership/january-2023";
+    /// Read Bundle Choices for the give month and year.
+    ///
+    /// `when` should be in the `month-year` format. For example: `"january-2023"`.
+    /// Use `"home"` to get the current active data.
+    pub fn read_bundle_choices(&self, when: &str) -> Result<HumbleChoice, ApiError> {
+        let url = format!("https://www.humblebundle.com/membership/{}", when);
 
         let client = Client::new();
         let res = client

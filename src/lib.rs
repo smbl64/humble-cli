@@ -182,11 +182,7 @@ fn list_humble_choices(_matches: &clap::ArgMatches) -> Result<(), anyhow::Error>
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
-    let choices = api.read_bundle_choices()?;
-    // if !choices.options.is_active_content {
-    //     // TODO
-    //     return Ok(());
-    // }
+    let choices = api.read_bundle_choices("home")?;
 
     println!();
     println!("{}", choices.options.title);
@@ -200,11 +196,20 @@ fn list_humble_choices(_matches: &clap::ArgMatches) -> Result<(), anyhow::Error>
     for (_, game_data) in options.data.game_data.iter() {
         for tpkd in game_data.tpkds.iter() {
             let redeemed = tpkd.redeemed_key_val.is_some();
+            let is_active = tpkd.gamekey.is_some();
+
+            let redeem_title = if is_active && redeemed {
+                "Yes"
+            } else if is_active {
+                "No"
+            } else {
+                "N/A" // User didn't own it
+            };
 
             builder = builder.add_record([
                 counter.to_string().as_str(),
                 tpkd.human_name.as_str(),
-                if redeemed { "Yes" } else { "No" },
+                redeem_title,
             ]);
 
             counter += 1;
