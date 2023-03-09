@@ -50,11 +50,11 @@ pub fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Er
     }
 }
 
-pub fn list_humble_choices() -> Result<(), anyhow::Error> {
+pub fn list_humble_choices(period: &str) -> Result<(), anyhow::Error> {
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
-    let choices = api.read_bundle_choices("home")?;
+    let choices = api.read_bundle_choices(period)?;
 
     println!();
     println!("{}", choices.options.title);
@@ -118,9 +118,9 @@ pub fn list_bundles(id_only: bool, claimed_filter: &str) -> Result<(), anyhow::E
     if claimed_filter != "all" {
         let claimed = claimed_filter == "yes";
         bundles.retain(|b| {
-                let status = b.claim_status();
-                status == ClaimStatus::Yes && claimed || status == ClaimStatus::No && !claimed
-            });
+            let status = b.claim_status();
+            status == ClaimStatus::Yes && claimed || status == ClaimStatus::No && !claimed
+        });
     }
 
     if id_only {

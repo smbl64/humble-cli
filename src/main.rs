@@ -35,8 +35,14 @@ fn run() -> Result<(), anyhow::Error> {
             )
     );
 
-    let list_choices_subcommand =
-        Command::new("list-choices").about("List your current Humble Choices");
+    let list_choices_subcommand = Command::new("list-choices")
+        .about("List your current Humble Choices")
+        .arg(
+            Arg::new("period")
+                .required(true)
+                .default_value("current")
+                .help("The month and the year to use for search. For example: 'january-2023'.\nUse 'current' for the current month."),
+        );
 
     let auth_subcommand = Command::new("auth")
         .about("Set the authentication session key")
@@ -172,7 +178,14 @@ fn run() -> Result<(), anyhow::Error> {
                 .unwrap_or("all");
             list_bundles(id_only, claimed_filter)
         }
-        Some(("list-choices", _)) => list_humble_choices(),
+        Some(("list-choices", sub_matches)) => {
+            let mut period = sub_matches.value_of("period").unwrap();
+            if period.to_lowercase() == "current" {
+                period = "home";
+            }
+            list_humble_choices(period)
+        }
+
         // This shouldn't happen
         _ => Ok(()),
     };
