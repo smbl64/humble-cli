@@ -35,18 +35,16 @@ pub fn auth(session_key: &str) -> Result<(), anyhow::Error> {
 pub fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error> {
     match input {
         Ok(val) => Ok(val),
-        Err(ApiError::NetworkError(e)) if e.is_status() => {
-            return match e.status().unwrap() {
-                reqwest::StatusCode::UNAUTHORIZED => Err(anyhow!(
-                    "Unauthorized request (401). Is the session key correct?"
-                )),
-                reqwest::StatusCode::NOT_FOUND => Err(anyhow!(
-                    "Bundle not found (404). Is the bundle key correct?"
-                )),
-                s => Err(anyhow!("failed with status: {}", s)),
-            }
-        }
-        Err(e) => return Err(anyhow!("failed: {}", e)),
+        Err(ApiError::NetworkError(e)) if e.is_status() => match e.status().unwrap() {
+            reqwest::StatusCode::UNAUTHORIZED => Err(anyhow!(
+                "Unauthorized request (401). Is the session key correct?"
+            )),
+            reqwest::StatusCode::NOT_FOUND => Err(anyhow!(
+                "Bundle not found (404). Is the bundle key correct?"
+            )),
+            s => Err(anyhow!("failed with status: {}", s)),
+        },
+        Err(e) => Err(anyhow!("failed: {}", e)),
     }
 }
 

@@ -9,18 +9,18 @@ use std::time::Duration;
 #[derive(Debug, thiserror::Error)]
 pub enum DownloadError {
     #[error(transparent)]
-    NetworkError(#[from] reqwest::Error),
+    Network(#[from] reqwest::Error),
 
     #[error(transparent)]
-    IOError(#[from] std::io::Error),
+    IO(#[from] std::io::Error),
 
     #[error("{0}")]
-    GenericError(String),
+    Generic(String),
 }
 
 impl DownloadError {
     fn from_string(s: String) -> Self {
-        DownloadError::GenericError(s)
+        DownloadError::Generic(s)
     }
 }
 
@@ -42,7 +42,7 @@ pub async fn download_file(
         }
 
         match res {
-            Err(DownloadError::NetworkError(ref net_err))
+            Err(DownloadError::Network(ref net_err))
                 if net_err.is_connect() || net_err.is_timeout() =>
             {
                 println!("  Will retry in {} seconds...", RETRY_SECONDS);
