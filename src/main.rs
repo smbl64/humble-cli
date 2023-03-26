@@ -1,5 +1,5 @@
 use anyhow::Context;
-use clap::{value_parser, Arg, Command};
+use clap::{builder::ValueParser, value_parser, Arg, Command};
 use humble_cli::prelude::*;
 
 fn main() {
@@ -8,6 +8,10 @@ fn main() {
         eprintln!("{}: {:?}", crate_name, e);
         std::process::exit(1);
     }
+}
+
+fn parse_choices_period(input: &str) -> Result<ChoicePeriod, anyhow::Error> {
+    ChoicePeriod::try_from(input).map_err(|e| anyhow::anyhow!(e))
 }
 
 fn run() -> Result<(), anyhow::Error> {
@@ -39,8 +43,8 @@ fn run() -> Result<(), anyhow::Error> {
         .about("List your current Humble Choices")
         .arg(
             Arg::new("period")
-                .required(true)
                 .default_value("current")
+                .value_parser(ValueParser::new(parse_choices_period))
                 .help("The month and the year to use for search. For example: 'january-2023'.\nUse 'current' for the current month."),
         );
 
@@ -179,10 +183,7 @@ fn run() -> Result<(), anyhow::Error> {
             list_bundles(id_only, claimed_filter)
         }
         Some(("list-choices", sub_matches)) => {
-            let mut period = sub_matches.value_of("period").unwrap();
-            if period.to_lowercase() == "current" {
-                period = "home";
-            }
+            let period: &ChoicePeriod = sub_matches.get_one("period").unwrap();
             list_humble_choices(period)
         }
 

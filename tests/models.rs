@@ -26,8 +26,6 @@ fn get_test_product() -> Product {
         items: vec![dl1, dl2],
     };
 
-    
-
     Product {
         machine_name: "some-book".to_string(),
         human_name: "Some Book".to_string(),
@@ -52,4 +50,47 @@ fn product_total_size() {
 #[test]
 fn filter_by_total_size() {
     let _product = get_test_product();
+}
+
+#[test]
+fn choice_period_parses() {
+    struct TestData {
+        input: &'static str,
+        is_ok: bool,
+    }
+
+    let data = vec![
+        TestData {
+            input: "invalid",
+            is_ok: false,
+        },
+        TestData {
+            input: "foobar-2023",
+            is_ok: false,
+        },
+        TestData {
+            input: "march-12000",
+            is_ok: false,
+        },
+        TestData {
+            input: "march-2023",
+            is_ok: true,
+        },
+        TestData {
+            input: "current",
+            is_ok: true,
+        },
+    ];
+
+    for test_data in data {
+        let result = ChoicePeriod::try_from(test_data.input);
+        assert_eq!(
+            result.is_ok(),
+            test_data.is_ok,
+            "input: {}, expected ok: {}, got ok: {}",
+            test_data.input,
+            test_data.is_ok,
+            result.is_ok()
+        );
+    }
 }

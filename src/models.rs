@@ -229,3 +229,67 @@ impl Tpkd {
         }
     }
 }
+
+#[derive(Clone, Debug)]
+pub enum ChoicePeriod {
+    Current,
+    Date { month: String, year: u16 },
+}
+
+impl ToString for ChoicePeriod {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Current => "home".to_owned(),
+            Self::Date { month, year } => format!("{}-{}", month, year),
+        }
+    }
+}
+
+impl TryFrom<&str> for ChoicePeriod {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let value = value.to_lowercase();
+        if value == "current" {
+            return Ok(ChoicePeriod::Current);
+        }
+
+        let month_names = vec![
+            "january",
+            "february",
+            "march",
+            "april",
+            "may",
+            "june",
+            "july",
+            "august",
+            "september",
+            "october",
+            "november",
+            "december",
+        ];
+
+        let parts: Vec<_> = value.split("-").collect();
+        if parts.len() != 2 {
+            return Err("invalid format. expected {month name}-{year}".to_owned());
+        }
+
+        let month = parts[0];
+        if !month_names.contains(&month) {
+            return Err(format!("invalid month: {month}"));
+        }
+
+        let year: u16 = parts[1]
+            .parse()
+            .map_err(|e| format!("invalid year value: {}", e))?;
+
+        if year < 2018 || year > 2030 {
+            return Err("years out of 2018-2030 range are not supported".to_owned());
+        }
+
+        Ok(ChoicePeriod::Date {
+            month: month.to_owned(),
+            year,
+        })
+    }
+}

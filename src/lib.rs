@@ -22,6 +22,7 @@ use anyhow::{anyhow, Context};
 use config::{get_config, set_config, Config};
 use humble_api::{ApiError, HumbleApi};
 use key_match::KeyMatch;
+use prelude::ChoicePeriod;
 use std::fs;
 use std::path;
 use tabled::{object::Columns, Alignment, Modify, Style};
@@ -48,11 +49,11 @@ pub fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Er
     }
 }
 
-pub fn list_humble_choices(period: &str) -> Result<(), anyhow::Error> {
+pub fn list_humble_choices(period: &ChoicePeriod) -> Result<(), anyhow::Error> {
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
-    let choices = api.read_bundle_choices(period)?;
+    let choices = api.read_bundle_choices(&period.to_string())?;
 
     println!();
     println!("{}", choices.options.title);
