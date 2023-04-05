@@ -88,7 +88,7 @@ where
 pub fn parse_usize_range(value: &str, max_value: usize) -> Option<Vec<usize>> {
     let dash_idx = value.find('-');
 
-    if dash_idx == None {
+    if dash_idx.is_none() {
         return value.parse::<usize>().map(|v| vec![v]).ok();
     }
 

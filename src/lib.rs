@@ -1,182 +1,102 @@
 mod config;
-pub mod download;
-pub mod humble_api;
+mod download;
+mod humble_api;
 mod key_match;
-pub mod util;
+mod models;
+mod util;
 
+pub mod prelude {
+    pub use crate::auth;
+    pub use crate::download_bundle;
+    pub use crate::list_bundles;
+    pub use crate::list_humble_choices;
+    pub use crate::show_bundle_details;
+
+    pub use crate::humble_api::{ApiError, HumbleApi};
+    pub use crate::models::*;
+    pub use crate::util::byte_string_to_number;
+}
+
+use crate::models::ClaimStatus;
 use anyhow::{anyhow, Context};
-use clap::value_parser;
-use clap::{Arg, Command};
-use config::set_config;
+use config::{get_config, set_config, Config};
+use humble_api::{ApiError, HumbleApi};
 use key_match::KeyMatch;
+use prelude::ChoicePeriod;
 use std::fs;
 use std::path;
 use tabled::{object::Columns, Alignment, Modify, Style};
 
-pub use config::{get_config, Config};
-use humble_api::{ApiError, HumbleApi};
-
-pub fn run() -> Result<(), anyhow::Error> {
-    let list_subcommand = Command::new("list")
-        .about("List all your purchased bundles")
-        .arg(
-        Arg::new("id-only")
-            .long("id-only")
-            .help("Print bundle IDs only")
-            .long_help(
-                "Print bundle IDs only. This can be used to chain commands together for automation.",
-            ),
-    ).arg(
-        Arg::new("claimed")
-            .long("claimed")
-            .takes_value(true)
-            .possible_values(["all", "yes", "no"])
-            .default_value("all")
-            .value_parser(value_parser!(String))
-            .help("Show claimed or unclaimed bundles only. This is mostly useful if you want to know which games you have not claimed yet.")
-    );
-
-    let auth_subcommand = Command::new("auth")
-        .about("Set the authentication session key")
-        .long_about(
-            "Set the session key used for authentication with Humble Bundle API. \
-            See online documentation on how to find the session key from your web browser.",
-        )
-        .arg(
-            Arg::new("SESSION-KEY")
-                .required(true)
-                .takes_value(true)
-                .help("Session key that's copied from your web browser"),
-        );
-
-    let details_subcommand = Command::new("details")
-        .about("Print details of a certain bundle")
-        .arg(
-            Arg::new("BUNDLE-KEY")
-                .required(true)
-                .takes_value(true)
-                .help("The key for the bundle which must be shown")
-                .long_help(
-                    "The key for the bundle which must be shown. It can be partially entered.",
-                ),
-        );
-
-    let download_subcommand = Command::new("download")
-        .about("Selectively download items from a bundle")
-        .arg(
-            Arg::new("BUNDLE-KEY")
-                .required(true)
-                .help("The key for the bundle which must be downloaded")
-                .long_help(
-                    "The key for the bundle which must be downloaded. It can be partially entered."
-                )
-        )
-        .arg(
-            Arg::new("item-numbers")
-            .short('i')
-            .long("item-numbers")
-            .takes_value(true)
-            .help("Download only specified items")
-            .long_help(
-                "Download only specified items. This is a comman-separated list of item numbers to download. \
-                Item numbers begin from 1 and can be a single number or a range.\n\
-                Some examples:\n\n\
-                '--item-numbers 1,3,5' will download items 1, 3, and 5.\n\
-                '--item number 5-10' will download items 5 to 10 (inclusive)\n\n\
-                When specifying ranges, either the beginning or the end of the range can be omitted.\n\
-                For example, '--item-numbers 10-' will download items 10 to the end.
-                "
-            )
-        )
-        .arg(
-            Arg::new("format")
-                .short('f')
-                .long("format")
-                .takes_value(true)
-                .multiple_occurrences(true)
-                .help("Filter downloaded items by their format")
-                .long_help(
-                    "Filter downloaded files by their format. Formats are case-insensitive and \
-                    this filter can be used several times to specify multiple formats.\n\n\
-                    For example: --filter-by-format epub --filter-by-format mobi"
-                )
-        )
-        .arg(
-            Arg::new("max-size")
-                .short('s')
-                .long("max-size")
-                .takes_value(true)
-                .help("Filter downloaded items by their maximum size")
-                .long_help(
-                    "Filter downloaded items by their maximum size. This will skip any sub-item in a bundle \
-                    that exceeds this limit. \
-                    You can use the traditional size units such as KB or MiB. Make sure there is no space \
-                    between the number and the unit. For example 14MB or 4GiB.\n\n\
-                    Note: The size limit works on a sub-item level, and not per file. \
-                    For example, if you specify a limit of 10 MB and a sub-item has two 6 MB books in it, \
-                    this sub-items will not be downloaded, because its total size exceeds the 10 MB limit (12 MB in total)."
-                    )
-        );
-
-    let sub_commands = vec![
-        auth_subcommand,
-        list_subcommand,
-        details_subcommand,
-        download_subcommand,
-    ];
-
-    let crate_name = clap::crate_name!();
-
-    let matches = clap::Command::new(crate_name)
-        .about("The missing Humble Bundle CLI")
-        .version(clap::crate_version!())
-        .after_help("Note: `humble-cli -h` prints a short and concise overview while `humble-cli --help` gives all details.")
-        .subcommand_required(true)
-        .arg_required_else_help(true)
-        .subcommands(sub_commands)
-        .get_matches();
-
-    return match matches.subcommand() {
-        Some(("auth", sub_matches)) => auth(sub_matches),
-        Some(("details", sub_matches)) => show_bundle_details(sub_matches),
-        Some(("download", sub_matches)) => download_bundle(sub_matches),
-        Some(("list", sub_matches)) => list_bundles(sub_matches),
-        // This shouldn't happen
-        _ => Ok(()),
-    };
-}
-
-fn auth(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
-    let session_key = matches.value_of("SESSION-KEY").unwrap();
-
+pub fn auth(session_key: &str) -> Result<(), anyhow::Error> {
     set_config(Config {
         session_key: session_key.to_owned(),
     })
 }
 
-fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error> {
+pub fn handle_http_errors<T>(input: Result<T, ApiError>) -> Result<T, anyhow::Error> {
     match input {
         Ok(val) => Ok(val),
-        Err(ApiError::NetworkError(e)) if e.is_status() => {
-            return match e.status().unwrap() {
-                reqwest::StatusCode::UNAUTHORIZED => Err(anyhow!(
-                    "Unauthorized request (401). Is the session key correct?"
-                )),
-                reqwest::StatusCode::NOT_FOUND => Err(anyhow!(
-                    "Bundle not found (404). Is the bundle key correct?"
-                )),
-                s => Err(anyhow!("failed with status: {}", s)),
-            }
-        }
-        Err(e) => return Err(anyhow!("failed: {}", e)),
+        Err(ApiError::NetworkError(e)) if e.is_status() => match e.status().unwrap() {
+            reqwest::StatusCode::UNAUTHORIZED => Err(anyhow!(
+                "Unauthorized request (401). Is the session key correct?"
+            )),
+            reqwest::StatusCode::NOT_FOUND => Err(anyhow!(
+                "Bundle not found (404). Is the bundle key correct?"
+            )),
+            s => Err(anyhow!("failed with status: {}", s)),
+        },
+        Err(e) => Err(anyhow!("failed: {}", e)),
     }
 }
 
-fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
-    let id_only = matches.is_present("id-only");
-    // It has a default value, so calling unwrap is safw
-    let claimed_filter = matches.get_one::<String>("claimed").unwrap();
+pub fn list_humble_choices(period: &ChoicePeriod) -> Result<(), anyhow::Error> {
+    let config = get_config()?;
+    let api = HumbleApi::new(&config.session_key);
 
+    let choices = api.read_bundle_choices(&period.to_string())?;
+
+    println!();
+    println!("{}", choices.options.title);
+    println!();
+
+    let options = choices.options;
+
+    let mut builder = tabled::builder::Builder::default().set_columns(["#", "Title", "Redeemed"]);
+
+    let mut counter = 1;
+    let mut all_redeemed = true;
+    for (_, game_data) in options.data.game_data.iter() {
+        for tpkd in game_data.tpkds.iter() {
+            builder = builder.add_record([
+                counter.to_string().as_str(),
+                tpkd.human_name.as_str(),
+                tpkd.claim_status().to_string().as_str(),
+            ]);
+
+            counter += 1;
+
+            if tpkd.claim_status() == ClaimStatus::No {
+                all_redeemed = false;
+            }
+        }
+    }
+
+    let table = builder
+        .build()
+        .with(Style::psql())
+        .with(Modify::new(Columns::single(0)).with(Alignment::right()))
+        .with(Modify::new(Columns::single(1)).with(Alignment::left()));
+
+    println!("{table}");
+
+    if !all_redeemed {
+        let url = "https://www.humblebundle.com/membership/home";
+        println!("Visit {url} to redeem your keys.");
+    }
+    Ok(())
+}
+
+pub fn list_bundles(id_only: bool, claimed_filter: &str) -> Result<(), anyhow::Error> {
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
@@ -196,10 +116,10 @@ fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
 
     if claimed_filter != "all" {
         let claimed = claimed_filter == "yes";
-        bundles = bundles
-            .into_iter()
-            .filter(|b| b.claimed == claimed)
-            .collect();
+        bundles.retain(|b| {
+            let status = b.claim_status();
+            status == ClaimStatus::Yes && claimed || status == ClaimStatus::No && !claimed
+        });
     }
 
     if id_only {
@@ -212,7 +132,7 @@ fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
 
     println!("{} bundle(s) found.", bundles.len());
 
-    if bundles.len() == 0 {
+    if bundles.is_empty() {
         return Ok(());
     }
 
@@ -223,7 +143,7 @@ fn list_bundles(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
             p.gamekey.as_str(),
             p.details.human_name.as_str(),
             util::humanize_bytes(p.total_size()).as_str(),
-            if p.claimed { "Yes" } else { "No" },
+            p.claim_status().to_string().as_str(),
         ]);
     }
 
@@ -257,9 +177,8 @@ fn find_key(all_keys: Vec<String>, key_to_find: &str) -> Option<String> {
     }
 }
 
-fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
     let config = get_config()?;
-    let bundle_key = matches.value_of("BUNDLE-KEY").unwrap();
     let api = crate::HumbleApi::new(&config.session_key);
 
     let bundle_key = match find_key(handle_http_errors(api.list_bundle_keys())?, bundle_key) {
@@ -271,48 +190,82 @@ fn show_bundle_details(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> 
 
     println!();
     println!("{}", bundle.details.human_name);
-    println!("Purchased: {}", bundle.created.format("%v %I:%M %p"));
-    println!("Total size: {}", util::humanize_bytes(bundle.total_size()));
+    println!();
+    println!("Purchased  : {}", bundle.created.format("%v %I:%M %p"));
+    println!("Total size : {}", util::humanize_bytes(bundle.total_size()));
     println!();
 
-    let mut builder = tabled::builder::Builder::default();
-    builder = builder.set_columns(["#", "Sub-item", "Format", "Total Size"]);
+    if !bundle.products.is_empty() {
+        let mut builder = tabled::builder::Builder::default();
+        builder = builder.set_columns(["#", "Sub-item", "Format", "Total Size"]);
 
-    for (idx, entry) in bundle.products.iter().enumerate() {
-        builder = builder.add_record([
-            &(idx + 1).to_string(),
-            &entry.human_name,
-            &entry.formats(),
-            &util::humanize_bytes(entry.total_size()),
-        ]);
+        for (idx, entry) in bundle.products.iter().enumerate() {
+            builder = builder.add_record([
+                &(idx + 1).to_string(),
+                &entry.human_name,
+                &entry.formats(),
+                &util::humanize_bytes(entry.total_size()),
+            ]);
+        }
+        let table = builder
+            .build()
+            .with(Style::psql())
+            .with(Modify::new(Columns::single(0)).with(Alignment::right()))
+            .with(Modify::new(Columns::single(1)).with(Alignment::left()))
+            .with(Modify::new(Columns::single(2)).with(Alignment::left()))
+            .with(Modify::new(Columns::single(3)).with(Alignment::right()));
+        println!("{table}");
+    } else {
+        println!("No items to show.");
     }
-    let table = builder
-        .build()
-        .with(Style::psql())
-        .with(Modify::new(Columns::single(0)).with(Alignment::right()))
-        .with(Modify::new(Columns::single(1)).with(Alignment::left()))
-        .with(Modify::new(Columns::single(2)).with(Alignment::left()))
-        .with(Modify::new(Columns::single(3)).with(Alignment::right()));
-    println!("{table}");
+
+    // Product keys
+    let product_keys = bundle.product_keys();
+    if !product_keys.is_empty() {
+        println!();
+        println!("Keys in this bundle:");
+        println!();
+        let mut builder = tabled::builder::Builder::default();
+        builder = builder.set_columns(["#", "Key Name", "Redeemed"]);
+
+        let mut all_redeemed = true;
+        for (idx, entry) in product_keys.iter().enumerate() {
+            builder = builder.add_record([
+                (idx + 1).to_string().as_str(),
+                entry.human_name.as_str(),
+                if entry.redeemed { "Yes" } else { "No" },
+            ]);
+
+            if !entry.redeemed {
+                all_redeemed = false;
+            }
+        }
+
+        let table = builder
+            .build()
+            .with(Style::psql())
+            .with(Modify::new(Columns::single(0)).with(Alignment::right()))
+            .with(Modify::new(Columns::single(1)).with(Alignment::left()))
+            .with(Modify::new(Columns::single(2)).with(Alignment::center()));
+
+        println!("{table}");
+
+        if !all_redeemed {
+            let url = "https://www.humblebundle.com/home/keys";
+            println!("Visit {url} to redeem your keys.");
+        }
+    }
 
     Ok(())
 }
 
-fn download_bundle(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
+pub fn download_bundle(
+    bundle_key: &str,
+    formats: Vec<String>,
+    max_size: u64,
+    item_numbers: Option<&str>,
+) -> Result<(), anyhow::Error> {
     let config = get_config()?;
-    let bundle_key = matches.value_of("BUNDLE-KEY").unwrap();
-    let formats = if let Some(values) = matches.values_of("format") {
-        values.map(|f| f.to_lowercase()).collect::<Vec<_>>()
-    } else {
-        vec![]
-    };
-
-    let max_size: u64 = if let Some(byte_str) = matches.value_of("max-size") {
-        util::byte_string_to_number(byte_str)
-            .context(format!("failed to parse the specified size: {}", byte_str))?
-    } else {
-        0
-    };
 
     let api = crate::HumbleApi::new(&config.session_key);
 
@@ -326,7 +279,7 @@ fn download_bundle(matches: &clap::ArgMatches) -> Result<(), anyhow::Error> {
     // To parse the item number ranges, we need to know the max value
     // for unbounded ranges (e.g. 12-). That's why we parse this argument
     // after we read the bundle from the API.
-    let item_numbers = if let Some(value) = matches.value_of("item-numbers") {
+    let item_numbers = if let Some(value) = item_numbers {
         let ranges = value.split(',').collect::<Vec<_>>();
         util::union_usize_ranges(&ranges, bundle.products.len())?
     } else {

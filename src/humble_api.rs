@@ -1,9 +1,7 @@
-use chrono::NaiveDateTime;
+use crate::models::*;
 use futures_util::future;
 use reqwest::blocking::Client;
-use serde::Deserialize;
-use serde_with::{serde_as, VecSkipError};
-use std::collections::HashMap;
+use scraper::Selector;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -11,111 +9,12 @@ pub enum ApiError {
     #[error(transparent)]
     NetworkError(#[from] reqwest::Error),
 
-    #[error("Cannot parse the response")]
-    DeserializeFailed,
-}
+    // #[error("cannot parse the response")]
+    #[error(transparent)]
+    DeserializeError(#[from] serde_json::Error),
 
-type BundleMap = HashMap<String, Bundle>;
-
-#[serde_as]
-#[derive(Debug, Deserialize)]
-pub struct Bundle {
-    pub gamekey: String,
-    pub created: NaiveDateTime,
-    pub claimed: bool,
-
-    #[serde(rename = "product")]
-    pub details: BundleDetails,
-
-    #[serde(rename = "subproducts")]
-    #[serde_as(as = "VecSkipError<_>")]
-    pub products: Vec<Product>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct BundleDetails {
-    pub machine_name: String,
-    pub human_name: String,
-}
-
-impl Bundle {
-    pub fn total_size(&self) -> u64 {
-        self.products.iter().map(|e| e.total_size()).sum()
-    }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Product {
-    pub machine_name: String,
-    pub human_name: String,
-
-    #[serde(rename = "url")]
-    pub product_details_url: String,
-
-    /// List of associated downloads with this product.
-    ///
-    /// Note: Each product usually has one item here.
-    pub downloads: Vec<ProductDownload>,
-}
-
-impl Product {
-    pub fn total_size(&self) -> u64 {
-        self.downloads.iter().map(|e| e.total_size()).sum()
-    }
-
-    pub fn formats_as_vec(&self) -> Vec<&str> {
-        self.downloads
-            .iter()
-            .flat_map(|d| d.formats_as_vec())
-            .collect::<Vec<_>>()
-    }
-
-    pub fn formats(&self) -> String {
-        self.formats_as_vec().join(", ")
-    }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ProductDownload {
-    #[serde(rename = "download_struct")]
-    pub items: Vec<DownloadInfo>,
-}
-
-impl ProductDownload {
-    pub fn total_size(&self) -> u64 {
-        self.items.iter().map(|e| e.file_size).sum()
-    }
-
-    pub fn formats_as_vec(&self) -> Vec<&str> {
-        self.items.iter().map(|s| &s.format[..]).collect::<Vec<_>>()
-    }
-
-    pub fn formats(&self) -> String {
-        self.formats_as_vec().join(", ")
-    }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct DownloadInfo {
-    pub md5: String,
-
-    #[serde(rename = "name")]
-    pub format: String,
-
-    pub file_size: u64,
-
-    pub url: DownloadUrl,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct DownloadUrl {
-    pub web: String,
-    pub bittorrent: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GameKey {
-    gamekey: String,
+    #[error("cannot find any data")]
+    BundleNotFound,
 }
 
 pub struct HumbleApi {
@@ -181,7 +80,12 @@ impl HumbleApi {
         client: &reqwest::Client,
         keys: &[String],
     ) -> Result<Vec<Bundle>, ApiError> {
-        let query_params: Vec<_> = keys.into_iter().map(|key| ("gamekeys", key)).collect();
+        let mut query_params: Vec<_> = keys
+            .iter()
+            .map(|key| ("gamekeys", key.as_str()))
+            .collect();
+
+        query_params.insert(0, ("all_tpkds", "true"));
 
         let res = client
             .get("https://www.humblebundle.com/api/v1/orders")
@@ -200,7 +104,10 @@ impl HumbleApi {
     }
 
     pub fn read_bundle(&self, product_key: &str) -> Result<Bundle, ApiError> {
-        let url = format!("https://www.humblebundle.com/api/v1/order/{}", product_key);
+        let url = format!(
+            "https://www.humblebundle.com/api/v1/order/{}?all_tpkds=true",
+            product_key
+        );
 
         let client = Client::new();
         let res = client
@@ -213,7 +120,47 @@ impl HumbleApi {
             .send()?
             .error_for_status()?;
 
-        res.json::<Bundle>()
-            .map_err(|_| ApiError::DeserializeFailed)
+        res.json::<Bundle>().map_err(|e| e.into())
+    }
+
+    /// Read Bundle Choices for the give month and year.
+    ///
+    /// `when` should be in the `month-year` format. For example: `"january-2023"`.
+    /// Use `"home"` to get the current active data.
+    pub fn read_bundle_choices(&self, when: &str) -> Result<HumbleChoice, ApiError> {
+        let url = format!("https://www.humblebundle.com/membership/{}", when);
+
+        let client = Client::new();
+        let res = client
+            .get(url)
+            .header(
+                "cookie".to_owned(),
+                format!("_simpleauth_sess={}", self.auth_key),
+            )
+            .send()?
+            .error_for_status()?;
+
+        let html = res.text()?;
+        self.parse_bundle_choices(&html)
+    }
+
+    fn parse_bundle_choices(&self, html: &str) -> Result<HumbleChoice, ApiError> {
+        let document = scraper::html::Html::parse_document(html);
+        // One of these two CSS IDs will match. First one is for the active
+        // month, while the second is for previous months.
+        let sel = Selector::parse(
+            "script#webpack-subscriber-hub-data, script#webpack-monthly-product-data",
+        )
+        .unwrap();
+
+        let scripts: Vec<_> = document.select(&sel).collect();
+        if scripts.len() != 1 {
+            return Err(ApiError::BundleNotFound);
+        }
+
+        let script = scripts.get(0).unwrap();
+        let txt = script.inner_html();
+        let obj: HumbleChoice = serde_json::from_str(&txt)?;
+        Ok(obj)
     }
 }
