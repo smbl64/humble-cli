@@ -10,9 +10,17 @@ The missing CLI for downloading your Humble Bundle purchases!
     - filter them by format (epub, pdf etc.)
     - filter them by size 
     - download only selected items (by index)
+- See which bundles have unclaimed keys
+- Check your Humble Bundle Choices in current and previous months
 
 ## Install
-You can find the binaries in the [Releases][releases] page. Windows, macOS and Linux are supported.
+Option 1: Download the binaries in the [Releases][releases] page. Windows, macOS and Linux are supported.
+
+Option 2: Install it via `cargo`:
+
+```sh
+cargo install humble-cli
+```
 
 ## Usage
 
@@ -27,7 +35,7 @@ After that you will have access to the following sub-commands:
 ```
 $ humble-cli --help
 
-humble-cli 0.9.0
+humble-cli 0.9.1
 The missing Humble Bundle CLI
 
 USAGE:
