@@ -72,7 +72,9 @@ impl HumbleApi {
             .into_iter()
             .collect();
 
-        Ok(result?.into_iter().flatten().collect())
+        let mut bundles: Vec<_> = result?.into_iter().flatten().collect();
+        bundles.sort_by(|a, b| a.created.partial_cmp(&b.created).unwrap());
+        Ok(bundles)
     }
 
     async fn read_bundles_data(
@@ -80,10 +82,7 @@ impl HumbleApi {
         client: &reqwest::Client,
         keys: &[String],
     ) -> Result<Vec<Bundle>, ApiError> {
-        let mut query_params: Vec<_> = keys
-            .iter()
-            .map(|key| ("gamekeys", key.as_str()))
-            .collect();
+        let mut query_params: Vec<_> = keys.iter().map(|key| ("gamekeys", key.as_str())).collect();
 
         query_params.insert(0, ("all_tpkds", "true"));
 
