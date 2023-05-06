@@ -160,18 +160,18 @@ fn run() -> Result<(), anyhow::Error> {
         }
         Some(("download", sub_matches)) => {
             let bundle_key = sub_matches.value_of("BUNDLE-KEY").unwrap();
-            let formats = if let Some(values) = matches.values_of("format") {
+            let formats = if let Some(values) = sub_matches.values_of("format") {
                 values.map(|f| f.to_lowercase()).collect::<Vec<_>>()
             } else {
                 vec![]
             };
-            let max_size: u64 = if let Some(byte_str) = matches.value_of("max-size") {
+            let max_size: u64 = if let Some(byte_str) = sub_matches.value_of("max-size") {
                 byte_string_to_number(byte_str)
                     .context(format!("failed to parse the specified size: {}", byte_str))?
             } else {
                 0
             };
-            let item_numbers = matches.value_of("item-numbers");
+            let item_numbers = sub_matches.value_of("item-numbers");
             download_bundle(bundle_key, formats, max_size, item_numbers)
         }
         Some(("list", sub_matches)) => {
