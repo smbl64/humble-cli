@@ -102,11 +102,12 @@ pub fn list_humble_choices(period: &ChoicePeriod) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-pub fn search(keywords: &str) -> Result<(), anyhow::Error> {
+pub fn search(keywords: &str, match_mode: MatchMode) -> Result<(), anyhow::Error> {
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
-    let keyword = keywords.to_lowercase();
+    let keywords = keywords.to_lowercase();
+    let keywords: Vec<&str> = keywords.split(" ").collect();
 
     let bundles = handle_http_errors(api.list_bundles())?;
     type BundleItem<'a> = (&'a Bundle, String);
@@ -114,7 +115,7 @@ pub fn search(keywords: &str) -> Result<(), anyhow::Error> {
 
     for b in &bundles {
         for p in &b.products {
-            if p.human_name.to_lowercase().contains(&keyword) {
+            if p.name_matches(&keywords, &match_mode) {
                 search_result.push((b, p.human_name.to_owned()));
             }
         }

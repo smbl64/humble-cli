@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use chrono::NaiveDateTime;
 use serde::Deserialize;
@@ -102,7 +102,7 @@ impl Bundle {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct Product {
     pub machine_name: String,
     pub human_name: String,
@@ -130,6 +130,30 @@ impl Product {
 
     pub fn formats(&self) -> String {
         self.formats_as_vec().join(", ")
+    }
+
+    pub fn name_matches(&self, keywords: &[&str], mode: &MatchMode) -> bool {
+        let human_name = self.human_name.to_lowercase();
+        let mine: HashSet<&str> = human_name.split(" ").collect();
+
+        let mut kw_matched = 0;
+        for kw in keywords {
+            if !mine.contains(kw) {
+                continue;
+            }
+
+            match mode {
+                MatchMode::Any => return true,
+                MatchMode::All => {
+                    kw_matched += 1;
+                    if kw_matched == keywords.len() {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
     }
 }
 
@@ -291,5 +315,24 @@ impl TryFrom<&str> for ChoicePeriod {
             month: month.to_owned(),
             year,
         })
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum MatchMode {
+    All,
+    Any,
+}
+
+impl TryFrom<&str> for MatchMode {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let lowercase = value.to_lowercase();
+        match lowercase.as_str() {
+            "all" => Ok(MatchMode::All),
+            "any" => Ok(MatchMode::Any),
+            _ => Err(format!("invalid match mode: {}", value)),
+        }
     }
 }
