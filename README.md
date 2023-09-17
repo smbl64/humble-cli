@@ -12,6 +12,7 @@ The missing CLI for downloading your Humble Bundle purchases!
     - download only selected items (by index)
 - See which bundles have unclaimed keys
 - Check your Humble Bundle Choices in current and previous months
+- Search through all your purchases for a specific product
 
 ## Install
 Option 1: Download the binaries in the [Releases][releases] page. Windows, macOS and Linux are supported.
@@ -35,7 +36,7 @@ After that you will have access to the following sub-commands:
 ```
 $ humble-cli --help
 
-humble-cli 0.11.0
+humble-cli 0.12.0
 The missing Humble Bundle CLI
 
 USAGE:
@@ -52,6 +53,7 @@ SUBCOMMANDS:
     help            Print this message or the help of the given subcommand(s)
     list            List all your purchased bundles
     list-choices    List your current Humble Choices
+    search          Search through all bundle products for keywords
 
 Note: `humble-cli -h` prints a short and concise overview while `humble-cli --help` gives all
 details.

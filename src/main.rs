@@ -78,7 +78,7 @@ fn run() -> Result<(), anyhow::Error> {
         );
 
     let search_subcommand = Command::new("search")
-        .about("Search through all bundles for some keywords")
+        .about("Search through all bundle products for keywords")
         .arg(
             Arg::new("KEYWORDS")
                 .required(true)
