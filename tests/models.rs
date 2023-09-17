@@ -94,3 +94,54 @@ fn choice_period_parses() {
         );
     }
 }
+
+#[test]
+fn product_name_matches() {
+    struct TestData {
+        name: String,
+        keywords: String,
+        match_mode: MatchMode,
+        expected: bool,
+    }
+
+    let test_data = vec![
+        TestData {
+            name: "Python programming".to_owned(),
+            keywords: "python".to_owned(),
+            match_mode: MatchMode::Any,
+            expected: true,
+        },
+        TestData {
+            name: "Python programming".to_owned(),
+            keywords: "java".to_owned(),
+            match_mode: MatchMode::Any,
+            expected: false,
+        },
+        TestData {
+            name: "Programming in Rust second edition".to_owned(),
+            keywords: "rust edition".to_owned(),
+            match_mode: MatchMode::All,
+            expected: true,
+        },
+        TestData {
+            name: "Programming in Rust second edition".to_owned(),
+            keywords: "rust third".to_owned(),
+            match_mode: MatchMode::All,
+            expected: false,
+        },
+    ];
+
+    for td in test_data {
+        let mut product = Product::default();
+        product.human_name = td.name.clone();
+
+        let keywords = td.keywords.to_lowercase();
+        let keywords: Vec<&str> = keywords.split(" ").collect();
+        let got = product.name_matches(&keywords, &td.match_mode);
+        assert_eq!(
+            got, td.expected,
+            "expected {}, got {}, name = {}, keywords = {}, mode = {:?}",
+            td.expected, got, td.name, td.keywords, &td.match_mode,
+        )
+    }
+}

@@ -14,6 +14,10 @@ fn parse_choices_period(input: &str) -> Result<ChoicePeriod, anyhow::Error> {
     ChoicePeriod::try_from(input).map_err(|e| anyhow::anyhow!(e))
 }
 
+fn parse_match_mode(input: &str) -> Result<MatchMode, anyhow::Error> {
+    MatchMode::try_from(input).map_err(|e| anyhow::anyhow!(e))
+}
+
 fn run() -> Result<(), anyhow::Error> {
     let list_subcommand = Command::new("list")
         .about("List all your purchased bundles")
@@ -71,6 +75,26 @@ fn run() -> Result<(), anyhow::Error> {
                 .long_help(
                     "The key for the bundle which must be shown. It can be partially entered.",
                 ),
+        );
+
+    let search_subcommand = Command::new("search")
+        .about("Search through all bundle products for keywords")
+        .arg(
+            Arg::new("KEYWORDS")
+                .required(true)
+                .action(clap::ArgAction::Append)
+                .multiple_values(true)
+                .help("Search keywords"),
+        )
+        .arg(
+            Arg::new("mode")
+                .long("mode")
+                .value_name("mode")
+                .takes_value(true)
+                .possible_values(["all", "any"])
+                .default_value("any")
+                .value_parser(ValueParser::new(parse_match_mode))
+                .help("Whether all or any of the keywords should match the name"),
         );
 
     let download_subcommand = Command::new("download")
@@ -136,6 +160,7 @@ fn run() -> Result<(), anyhow::Error> {
         list_choices_subcommand,
         details_subcommand,
         download_subcommand,
+        search_subcommand,
     ];
 
     let crate_name = clap::crate_name!();
@@ -157,6 +182,15 @@ fn run() -> Result<(), anyhow::Error> {
         Some(("details", sub_matches)) => {
             let bundle_key = sub_matches.value_of("BUNDLE-KEY").unwrap();
             show_bundle_details(bundle_key)
+        }
+        Some(("search", sub_matches)) => {
+            let keywords: Vec<String> =
+                sub_matches.get_many("KEYWORDS").unwrap().cloned().collect();
+            let keywords = keywords.join(" ");
+
+            let match_mode: &MatchMode = sub_matches.get_one("mode").unwrap();
+            // let keywords = sub_matches.value_of("KEYWORDS").unwrap();
+            search(&keywords, *match_mode)
         }
         Some(("download", sub_matches)) => {
             let bundle_key = sub_matches.value_of("BUNDLE-KEY").unwrap();
