@@ -10,6 +10,7 @@ pub mod prelude {
     pub use crate::download_bundle;
     pub use crate::list_bundles;
     pub use crate::list_humble_choices;
+    pub use crate::search;
     pub use crate::show_bundle_details;
 
     pub use crate::humble_api::{ApiError, HumbleApi};
@@ -17,15 +18,18 @@ pub mod prelude {
     pub use crate::util::byte_string_to_number;
 }
 
-use crate::models::ClaimStatus;
 use anyhow::{anyhow, Context};
 use config::{get_config, set_config, Config};
 use humble_api::{ApiError, HumbleApi};
 use key_match::KeyMatch;
-use prelude::ChoicePeriod;
+use prelude::*;
 use std::fs;
 use std::path;
-use tabled::{object::Columns, Alignment, Modify, Style};
+use tabled::settings::object::Columns;
+use tabled::settings::Alignment;
+use tabled::settings::Merge;
+use tabled::settings::Modify;
+use tabled::settings::Style;
 
 pub fn auth(session_key: &str) -> Result<(), anyhow::Error> {
     set_config(Config {
@@ -61,13 +65,14 @@ pub fn list_humble_choices(period: &ChoicePeriod) -> Result<(), anyhow::Error> {
 
     let options = choices.options;
 
-    let mut builder = tabled::builder::Builder::default().set_columns(["#", "Title", "Redeemed"]);
+    let mut builder = tabled::builder::Builder::default();
+    builder.set_header(["#", "Title", "Redeemed"]);
 
     let mut counter = 1;
     let mut all_redeemed = true;
     for (_, game_data) in options.data.game_data.iter() {
         for tpkd in game_data.tpkds.iter() {
-            builder = builder.add_record([
+            builder.push_record([
                 counter.to_string().as_str(),
                 tpkd.human_name.as_str(),
                 tpkd.claim_status().to_string().as_str(),
@@ -85,7 +90,8 @@ pub fn list_humble_choices(period: &ChoicePeriod) -> Result<(), anyhow::Error> {
         .build()
         .with(Style::psql())
         .with(Modify::new(Columns::single(0)).with(Alignment::right()))
-        .with(Modify::new(Columns::single(1)).with(Alignment::left()));
+        .with(Modify::new(Columns::single(1)).with(Alignment::left()))
+        .to_string();
 
     println!("{table}");
 
@@ -93,6 +99,51 @@ pub fn list_humble_choices(period: &ChoicePeriod) -> Result<(), anyhow::Error> {
         let url = "https://www.humblebundle.com/membership/home";
         println!("Visit {url} to redeem your keys.");
     }
+    Ok(())
+}
+
+pub fn search(keywords: &str) -> Result<(), anyhow::Error> {
+    let config = get_config()?;
+    let api = HumbleApi::new(&config.session_key);
+
+    let keyword = keywords.to_lowercase();
+
+    let bundles = handle_http_errors(api.list_bundles())?;
+    type BundleItem<'a> = (&'a Bundle, String);
+    let mut search_result: Vec<BundleItem> = vec![];
+
+    for b in &bundles {
+        for p in &b.products {
+            if p.human_name.to_lowercase().contains(&keyword) {
+                search_result.push((b, p.human_name.to_owned()));
+            }
+        }
+    }
+
+    if search_result.is_empty() {
+        println!("Nothing found");
+        return Ok(());
+    }
+
+    let mut builder = tabled::builder::Builder::default();
+    builder.set_header(["Key", "Name", "Sub Item"]);
+    for record in search_result {
+        builder.push_record([
+            record.0.gamekey.as_str(),
+            record.0.details.human_name.as_str(),
+            record.1.as_str(),
+        ]);
+    }
+
+    let table = builder
+        .build()
+        .with(Style::psql())
+        .with(Modify::new(Columns::single(1)).with(Alignment::left()))
+        .with(Modify::new(Columns::single(2)).with(Alignment::left()))
+        .with(Merge::vertical())
+        .to_string();
+
+    println!("{table}");
     Ok(())
 }
 
@@ -130,16 +181,17 @@ pub fn list_bundles(id_only: bool, claimed_filter: &str) -> Result<(), anyhow::E
         return Ok(());
     }
 
-    println!("{} bundle(s) found.", bundles.len());
+    println!("{} bundle(s) found.\n", bundles.len());
 
     if bundles.is_empty() {
         return Ok(());
     }
 
-    let mut builder =
-        tabled::builder::Builder::default().set_columns(["Key", "Name", "Size", "Claimed"]);
+    let mut builder = tabled::builder::Builder::default();
+    builder.set_header(["Key", "Name", "Size", "Claimed"]);
+
     for p in bundles {
-        builder = builder.add_record([
+        builder.push_record([
             p.gamekey.as_str(),
             p.details.human_name.as_str(),
             util::humanize_bytes(p.total_size()).as_str(),
@@ -151,7 +203,8 @@ pub fn list_bundles(id_only: bool, claimed_filter: &str) -> Result<(), anyhow::E
         .build()
         .with(Style::psql())
         .with(Modify::new(Columns::single(1)).with(Alignment::left()))
-        .with(Modify::new(Columns::single(2)).with(Alignment::right()));
+        .with(Modify::new(Columns::single(2)).with(Alignment::right()))
+        .to_string();
     println!("{table}");
 
     Ok(())
@@ -197,10 +250,10 @@ pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
 
     if !bundle.products.is_empty() {
         let mut builder = tabled::builder::Builder::default();
-        builder = builder.set_columns(["#", "Sub-item", "Format", "Total Size"]);
+        builder.set_header(["#", "Sub-item", "Format", "Total Size"]);
 
         for (idx, entry) in bundle.products.iter().enumerate() {
-            builder = builder.add_record([
+            builder.push_record([
                 &(idx + 1).to_string(),
                 &entry.human_name,
                 &entry.formats(),
@@ -213,7 +266,9 @@ pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
             .with(Modify::new(Columns::single(0)).with(Alignment::right()))
             .with(Modify::new(Columns::single(1)).with(Alignment::left()))
             .with(Modify::new(Columns::single(2)).with(Alignment::left()))
-            .with(Modify::new(Columns::single(3)).with(Alignment::right()));
+            .with(Modify::new(Columns::single(3)).with(Alignment::right()))
+            .to_string();
+
         println!("{table}");
     } else {
         println!("No items to show.");
@@ -226,11 +281,11 @@ pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
         println!("Keys in this bundle:");
         println!();
         let mut builder = tabled::builder::Builder::default();
-        builder = builder.set_columns(["#", "Key Name", "Redeemed"]);
+        builder.set_header(["#", "Key Name", "Redeemed"]);
 
         let mut all_redeemed = true;
         for (idx, entry) in product_keys.iter().enumerate() {
-            builder = builder.add_record([
+            builder.push_record([
                 (idx + 1).to_string().as_str(),
                 entry.human_name.as_str(),
                 if entry.redeemed { "Yes" } else { "No" },
@@ -246,7 +301,8 @@ pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
             .with(Style::psql())
             .with(Modify::new(Columns::single(0)).with(Alignment::right()))
             .with(Modify::new(Columns::single(1)).with(Alignment::left()))
-            .with(Modify::new(Columns::single(2)).with(Alignment::center()));
+            .with(Modify::new(Columns::single(2)).with(Alignment::center()))
+            .to_string();
 
         println!("{table}");
 

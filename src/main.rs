@@ -73,6 +73,15 @@ fn run() -> Result<(), anyhow::Error> {
                 ),
         );
 
+    let search_subcommand = Command::new("search")
+        .about("Search through all bundles for some keywords")
+        .arg(
+            Arg::new("KEYWORDS")
+                .required(true)
+                .takes_value(true)
+                .help("Search keywords"),
+        );
+
     let download_subcommand = Command::new("download")
         .about("Selectively download items from a bundle")
         .arg(
@@ -136,6 +145,7 @@ fn run() -> Result<(), anyhow::Error> {
         list_choices_subcommand,
         details_subcommand,
         download_subcommand,
+        search_subcommand,
     ];
 
     let crate_name = clap::crate_name!();
@@ -157,6 +167,10 @@ fn run() -> Result<(), anyhow::Error> {
         Some(("details", sub_matches)) => {
             let bundle_key = sub_matches.value_of("BUNDLE-KEY").unwrap();
             show_bundle_details(bundle_key)
+        }
+        Some(("search", sub_matches)) => {
+            let ketwords = sub_matches.value_of("KEYWORDS").unwrap();
+            search(ketwords)
         }
         Some(("download", sub_matches)) => {
             let bundle_key = sub_matches.value_of("BUNDLE-KEY").unwrap();
