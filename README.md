@@ -1,7 +1,9 @@
+[![Build status](https://github.com/smbl64/humble-cli/actions/workflows/tests.yml/badge.svg)](https://github.com/smbl64/humble-cli/actions/workflows/tests.yml)
+![GitHub](https://img.shields.io/github/license/smbl64/humble-cli)
+![GitHub release (with filter)](https://img.shields.io/github/v/release/smbl64/humble-cli)
+
 # humble-cli
 The missing CLI for downloading your Humble Bundle purchases!
-
-[![Build status](https://github.com/smbl64/humble-cli/actions/workflows/tests.yml/badge.svg)](https://github.com/smbl64/humble-cli/actions/workflows/tests.yml)
 
 ## Features
 - List all your Humble Bundle purchases
