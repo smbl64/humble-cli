@@ -17,9 +17,9 @@ The missing CLI for downloading your Humble Bundle purchases!
 - Search through all your purchases for a specific product
 
 ## Install
-Option 1: Download the binaries in the [Releases][releases] page. Windows, macOS and Linux are supported.
+**Option 1:** Download the binaries in the [Releases][releases] page. Windows, macOS and Linux are supported.
 
-Option 2: Install it via `cargo`:
+**Option 2:** Install it via `cargo`:
 
 ```sh
 cargo install humble-cli
@@ -36,9 +36,7 @@ Use `humble-cli auth "<YOUR SESSION KEY>"` to store the authentication key local
 After that you will have access to the following sub-commands:
 
 ```
-$ humble-cli --help
-
-humble-cli 0.12.0
+$ humble-cli 0.13.0
 The missing Humble Bundle CLI
 
 USAGE:
@@ -50,10 +48,10 @@ OPTIONS:
 
 SUBCOMMANDS:
     auth            Set the authentication session key
-    details         Print details of a certain bundle
-    download        Selectively download items from a bundle
+    details         Print details of a certain bundle [aliases: info]
+    download        Selectively download items from a bundle [aliases: d]
     help            Print this message or the help of the given subcommand(s)
-    list            List all your purchased bundles
+    list            List all your purchased bundles [aliases: ls]
     list-choices    List your current Humble Choices
     search          Search through all bundle products for keywords
 
