@@ -21,6 +21,7 @@ fn parse_match_mode(input: &str) -> Result<MatchMode, anyhow::Error> {
 fn run() -> Result<(), anyhow::Error> {
     let list_subcommand = Command::new("list")
         .about("List all your purchased bundles")
+        .visible_alias("ls")
         .arg(
         Arg::new("id-only")
             .long("id-only")
@@ -67,6 +68,7 @@ fn run() -> Result<(), anyhow::Error> {
 
     let details_subcommand = Command::new("details")
         .about("Print details of a certain bundle")
+        .visible_alias("info")
         .arg(
             Arg::new("BUNDLE-KEY")
                 .required(true)
@@ -99,6 +101,7 @@ fn run() -> Result<(), anyhow::Error> {
 
     let download_subcommand = Command::new("download")
         .about("Selectively download items from a bundle")
+        .visible_alias("d")
         .arg(
             Arg::new("BUNDLE-KEY")
                 .required(true)
