@@ -36,7 +36,7 @@ Use `humble-cli auth "<YOUR SESSION KEY>"` to store the authentication key local
 After that you will have access to the following sub-commands:
 
 ```
-$ humble-cli 0.13.0
+$ humble-cli 0.13.1
 The missing Humble Bundle CLI
 
 USAGE:
