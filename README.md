@@ -36,7 +36,8 @@ Use `humble-cli auth "<YOUR SESSION KEY>"` to store the authentication key local
 After that you will have access to the following sub-commands:
 
 ```
-$ humble-cli 0.13.1
+$ humble-cli --help
+humble-cli 0.14.0
 The missing Humble Bundle CLI
 
 USAGE:
@@ -48,6 +49,7 @@ OPTIONS:
 
 SUBCOMMANDS:
     auth            Set the authentication session key
+    completion      Generate shell completions
     details         Print details of a certain bundle [aliases: info]
     download        Selectively download items from a bundle [aliases: d]
     help            Print this message or the help of the given subcommand(s)
