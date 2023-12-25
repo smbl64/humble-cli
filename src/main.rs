@@ -1,5 +1,8 @@
+use std::io;
+
 use anyhow::Context;
 use clap::{builder::ValueParser, value_parser, Arg, Command};
+use clap_complete::Shell;
 use humble_cli::prelude::*;
 
 fn main() {
@@ -43,6 +46,17 @@ fn run() -> Result<(), anyhow::Error> {
                     This is useful if you want to know which games or bundles you have not claimed yet."
             )
     );
+
+    let completion_subcommand = Command::new("completion")
+        .about("Generate shell completions")
+        .arg(
+            Arg::new("SHELL")
+                .help("Shell type to generate completions for")
+                .possible_values(&["bash", "elvish", "fish", "powershell", "zsh"])
+                .takes_value(true)
+                .required(true)
+                .value_parser(value_parser!(Shell)),
+        );
 
     let list_choices_subcommand = Command::new("list-choices")
         .about("List your current Humble Choices")
@@ -164,20 +178,28 @@ fn run() -> Result<(), anyhow::Error> {
         details_subcommand,
         download_subcommand,
         search_subcommand,
+        completion_subcommand,
     ];
 
     let crate_name = clap::crate_name!();
 
-    let matches = clap::Command::new(crate_name)
+    let mut root = clap::Command::new(crate_name)
         .about("The missing Humble Bundle CLI")
         .version(clap::crate_version!())
         .after_help("Note: `humble-cli -h` prints a short and concise overview while `humble-cli --help` gives all details.")
         .subcommand_required(true)
         .arg_required_else_help(true)
-        .subcommands(sub_commands)
-        .get_matches();
+        .subcommands(sub_commands);
 
+    let matches = root.clone().get_matches();
     return match matches.subcommand() {
+        Some(("completion", sub_matches)) => {
+            if let Some(g) = sub_matches.get_one::<Shell>("SHELL").copied() {
+                let crate_name = clap::crate_name!();
+                clap_complete::generate(g, &mut root, crate_name, &mut io::stdout());
+            }
+            Ok(())
+        }
         Some(("auth", sub_matches)) => {
             let session_key = sub_matches.value_of("SESSION-KEY").unwrap();
             auth(session_key)
