@@ -75,10 +75,7 @@ impl Bundle {
         let mut result = vec![];
         for tpk in tpks {
             let redeemed = tpk["redeemed_key_val"].is_string();
-            let human_name = tpk["human_name"]
-                .as_str()
-                .expect("expected human_name to be a string")
-                .to_owned();
+            let human_name = tpk["human_name"].as_str().unwrap_or("").to_owned();
 
             result.push(ProductKey {
                 redeemed,
