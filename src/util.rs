@@ -36,6 +36,8 @@ pub fn replace_invalid_chars_in_filename(input: &str) -> String {
             }
         })
         .collect::<String>()
+        .trim()
+        .to_string()
 }
 
 pub fn extract_filename_from_url(url: &str) -> Option<String> {
@@ -148,10 +150,15 @@ pub fn union_usize_ranges(values: &[&str], max_value: usize) -> Result<Vec<usize
 
 #[test]
 fn test_remove_invalid_chars() {
-    assert_eq!(
-        replace_invalid_chars_in_filename("Humble Bundle: Nice book"),
-        "Humble Bundle  Nice book".to_string()
-    );
+    let test_data = vec![
+        ("Humble Bundle: Nice book", "Humble Bundle  Nice book"),
+        ("::Make::", "Make"),
+    ];
+
+    for (input, expected) in test_data {
+        let got = replace_invalid_chars_in_filename(input);
+        assert_eq!(expected, got);
+    }
 }
 
 #[test]
