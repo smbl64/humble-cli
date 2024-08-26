@@ -25,11 +25,13 @@ use key_match::KeyMatch;
 use prelude::*;
 use std::fs;
 use std::path;
+use std::time::Duration;
 use tabled::settings::object::Columns;
 use tabled::settings::Alignment;
 use tabled::settings::Merge;
 use tabled::settings::Modify;
 use tabled::settings::Style;
+
 
 pub fn auth(session_key: &str) -> Result<(), anyhow::Error> {
     set_config(Config {
@@ -367,7 +369,10 @@ pub fn download_bundle(
     let dir_name = util::replace_invalid_chars_in_filename(&bundle.details.human_name);
     let bundle_dir = create_dir(&dir_name)?;
 
-    let client = reqwest::Client::new();
+    let http_read_timeout = Duration::from_secs(30);
+    let client = reqwest::Client::builder()
+        .read_timeout(http_read_timeout)
+        .build()?;
 
     for product in products {
         if max_size > 0 && product.total_size() > max_size {
