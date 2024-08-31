@@ -29,7 +29,7 @@ clap = { version = "3.1", features = ["cargo", "derive"] }
 clap_complete = "3.2"
 dirs = "5.0.1"
 futures-util = "0.3"
-indicatif = "0.16"
+indicatif = "0.17"
 reqwest = { version = "0.12", features = ["json", "blocking", "rustls-tls", "stream"], default-features = false }
 scraper = "0.15.0"
 serde = { version = "1.0", features = ["derive"] }

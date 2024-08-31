@@ -124,6 +124,7 @@ fn get_progress_bar(total_size: u64) -> ProgressBar {
     pb.set_style(
         ProgressStyle::default_bar()
             .template(pb_template)
+            .expect("failed to parse progressbar template")
             .progress_chars("=> "),
     );
     pb
