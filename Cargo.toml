@@ -27,7 +27,7 @@ byte-unit = { version = "4.0", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "3.1", features = ["cargo", "derive"] }
 clap_complete = "3.2"
-dirs = "4.0.0"
+dirs = "5.0.1"
 futures-util = "0.3"
 indicatif = "0.16"
 reqwest = { version = "0.12", features = ["json", "blocking", "rustls-tls", "stream"], default-features = false }
