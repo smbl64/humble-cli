@@ -1,4 +1,4 @@
-use byte_unit::Byte;
+use byte_unit::{Byte, UnitType};
 use std::{collections::HashSet, future::Future};
 
 pub fn run_future<F, T>(input: F) -> T
@@ -10,15 +10,15 @@ where
 }
 
 pub fn humanize_bytes(bytes: u64) -> String {
-    Byte::from_bytes(bytes)
-        .get_appropriate_unit(true)
+    Byte::from_u64(bytes)
+        .get_appropriate_unit(UnitType::Binary)
         .to_string()
 }
 
 // Convert a string representing a byte size (e.g. 12MB) to a number.
 // It supports the IEC (KiB MiB ...) and KB MB ... formats.
 pub fn byte_string_to_number(byte_string: &str) -> Option<u64> {
-    Byte::from_str(byte_string).map(|b| b.into()).ok()
+    Byte::parse_str(byte_string, true).map(|b| b.into()).ok()
 }
 
 pub fn replace_invalid_chars_in_filename(input: &str) -> String {
@@ -183,6 +183,18 @@ fn test_extract_filename_from_url() {
     }
 }
 
+#[test]
+/// A test to make sure `humanize_bytes` function works as expected.
+///
+/// We rely on an external library to do this for us, but still a good
+/// idea to have a small test to make sure the library is not broken :-)
+fn test_humanize_bytes() {
+    let test_data = vec![(1, "1 B"), (3 * 1024, "3 KiB")];
+
+    for (input, want) in test_data {
+        assert_eq!(humanize_bytes(input), want.to_string());
+    }
+}
 #[test]
 fn test_vectors_intersect() {
     let test_data = vec![
