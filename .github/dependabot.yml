@@ -6,6 +6,11 @@ updates:
       interval: "monthly"
     reviewers:
       - "smbl64"
+    ignore:
+      - dependency-name: "clap"
+        versions: ["4.x"]
+      - dependency-name: "clap_complete"
+        versions: ["4.x"]
       
   - package-ecosystem: "github-actions"
     directory: "/"
