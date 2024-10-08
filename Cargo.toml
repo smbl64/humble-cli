@@ -31,7 +31,7 @@ dirs = "5.0.1"
 futures-util = "0.3"
 indicatif = "0.17"
 reqwest = { version = "0.12", features = ["json", "blocking", "rustls-tls", "stream"], default-features = false }
-scraper = "0.18.1"
+scraper = "0.20.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_with = "3.11"
