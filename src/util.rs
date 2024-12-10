@@ -10,9 +10,8 @@ where
 }
 
 pub fn humanize_bytes(bytes: u64) -> String {
-    Byte::from_u64(bytes)
-        .get_appropriate_unit(UnitType::Binary)
-        .to_string()
+    let b = Byte::from_u64(bytes).get_appropriate_unit(UnitType::Binary);
+    return format!("{b:.2}");
 }
 
 // Convert a string representing a byte size (e.g. 12MB) to a number.
@@ -189,7 +188,7 @@ fn test_extract_filename_from_url() {
 /// We rely on an external library to do this for us, but still a good
 /// idea to have a small test to make sure the library is not broken :-)
 fn test_humanize_bytes() {
-    let test_data = vec![(1, "1 B"), (3 * 1024, "3 KiB")];
+    let test_data = vec![(1, "1 B"), (3 * 1024, "3.00 KiB")];
 
     for (input, want) in test_data {
         assert_eq!(humanize_bytes(input), want.to_string());
