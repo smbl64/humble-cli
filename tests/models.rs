@@ -3,7 +3,7 @@ use humble_cli::prelude::*;
 fn new_download_url(web_url: &str) -> DownloadUrl {
     DownloadUrl {
         web: web_url.to_string(),
-        bittorrent: "".to_string(),
+        bittorrent: web_url.to_string() + ".torrent",
     }
 }
 
