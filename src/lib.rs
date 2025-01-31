@@ -323,6 +323,7 @@ pub fn download_bundle(
     formats: Vec<String>,
     max_size: u64,
     item_numbers: Option<&str>,
+    torrents_only: bool,
 ) -> Result<(), anyhow::Error> {
     let config = get_config()?;
 
@@ -395,14 +396,20 @@ pub fn download_bundle(
                     continue;
                 }
 
-                let filename = util::extract_filename_from_url(&dl_info.url.web).context(
-                    format!("Cannot get file name from URL '{}'", &dl_info.url.web),
+                let download_url = if torrents_only {
+                    &dl_info.url.bittorrent
+                } else {
+                    &dl_info.url.web
+                };
+
+                let filename = util::extract_filename_from_url(&download_url).context(
+                    format!("Cannot get file name from URL '{}'", &download_url),
                 )?;
                 let download_path = entry_dir.join(&filename);
 
                 let f = download::download_file(
                     &client,
-                    &dl_info.url.web,
+                    &download_url,
                     download_path.to_str().unwrap(),
                     &filename,
                 );

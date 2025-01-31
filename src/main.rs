@@ -155,6 +155,18 @@ fn run() -> Result<(), anyhow::Error> {
                 )
         )
         .arg(
+            Arg::new("torrents")
+                .short('t')
+                .long("torrents")
+                .takes_value(false)
+                .help("Download only .torrent files for items")
+                .long_help(
+                    "Download only the BitTorrent files for the given items. This will prevent \
+                    all the original files from downloading. To download both, run again without \
+                    this flag."
+                )
+        )
+        .arg(
             Arg::new("max-size")
                 .short('s')
                 .long("max-size")
@@ -231,7 +243,8 @@ fn run() -> Result<(), anyhow::Error> {
                 0
             };
             let item_numbers = sub_matches.value_of("item-numbers");
-            download_bundle(bundle_key, formats, max_size, item_numbers)
+            let torrents_only = sub_matches.is_present("torrents");
+            download_bundle(bundle_key, formats, max_size, item_numbers, torrents_only)
         }
         Some(("list", sub_matches)) => {
             let id_only = sub_matches.is_present("id-only");
