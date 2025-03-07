@@ -1,7 +1,7 @@
 [package]
 name = "humble-cli"
 authors = ["Mohammad Banisaeid <smbl64@gmail.com>"]
-version = "0.17.0"
+version = "0.17.1"
 license = "MIT"
 description = "The missing CLI for downloading your Humble Bundle purchases"
 documentation = "https://github.com/smbl64/humble-cli"
