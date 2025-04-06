@@ -32,7 +32,6 @@ use tabled::settings::Merge;
 use tabled::settings::Modify;
 use tabled::settings::Style;
 
-
 pub fn auth(session_key: &str) -> Result<(), anyhow::Error> {
     set_config(Config {
         session_key: session_key.to_owned(),
@@ -68,7 +67,7 @@ pub fn list_humble_choices(period: &ChoicePeriod) -> Result<(), anyhow::Error> {
     let options = choices.options;
 
     let mut builder = tabled::builder::Builder::default();
-    builder.set_header(["#", "Title", "Redeemed"]);
+    builder.push_record(["#", "Title", "Redeemed"]);
 
     let mut counter = 1;
     let mut all_redeemed = true;
@@ -129,7 +128,7 @@ pub fn search(keywords: &str, match_mode: MatchMode) -> Result<(), anyhow::Error
     }
 
     let mut builder = tabled::builder::Builder::default();
-    builder.set_header(["Key", "Name", "Sub Item"]);
+    builder.push_record(["Key", "Name", "Sub Item"]);
     for record in search_result {
         builder.push_record([
             record.0.gamekey.as_str(),
@@ -191,7 +190,7 @@ pub fn list_bundles(id_only: bool, claimed_filter: &str) -> Result<(), anyhow::E
     }
 
     let mut builder = tabled::builder::Builder::default();
-    builder.set_header(["Key", "Name", "Size", "Claimed"]);
+    builder.push_record(["Key", "Name", "Size", "Claimed"]);
 
     for p in bundles {
         builder.push_record([
@@ -253,7 +252,7 @@ pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
 
     if !bundle.products.is_empty() {
         let mut builder = tabled::builder::Builder::default();
-        builder.set_header(["#", "Sub-item", "Format", "Total Size"]);
+        builder.push_record(["#", "Sub-item", "Format", "Total Size"]);
 
         for (idx, entry) in bundle.products.iter().enumerate() {
             builder.push_record([
@@ -284,7 +283,7 @@ pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
         println!("Keys in this bundle:");
         println!();
         let mut builder = tabled::builder::Builder::default();
-        builder.set_header(["#", "Key Name", "Redeemed"]);
+        builder.push_record(["#", "Key Name", "Redeemed"]);
 
         let mut all_redeemed = true;
         for (idx, entry) in product_keys.iter().enumerate() {
@@ -402,9 +401,8 @@ pub fn download_bundle(
                     &dl_info.url.web
                 };
 
-                let filename = util::extract_filename_from_url(&download_url).context(
-                    format!("Cannot get file name from URL '{}'", &download_url),
-                )?;
+                let filename = util::extract_filename_from_url(&download_url)
+                    .context(format!("Cannot get file name from URL '{}'", &download_url))?;
                 let download_path = entry_dir.join(&filename);
 
                 let f = download::download_file(
