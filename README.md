@@ -2,21 +2,20 @@
 ![GitHub](https://img.shields.io/github/license/smbl64/humble-cli)
 ![GitHub release (with filter)](https://img.shields.io/github/v/release/smbl64/humble-cli)
 
-# humble-cli
-The missing CLI for downloading your Humble Bundle purchases!
+# humble-cli  
+The missing command-line interface for downloading your Humble Bundle purchases!
 
-## Features
+## ✨ Features 
 - List all your Humble Bundle purchases
-- See contents of each bundle, along with file formats and their size
-- Download items in a bundle, with the option to 
-    - filter them by format (epub, pdf etc.)
-    - filter them by size 
-    - download only selected items (by index)
-- See which bundles have unclaimed keys
+- List entries in a bundle, their file formats, and file size
+- Download items in a bundle separately, and optionally filter them with
+    - file format (e.g., EPUB, PDF)
+    - file size 
+- Easily see which of your bundles have unclaimed keys
 - Check your Humble Bundle Choices in current and previous months
 - Search through all your purchases for a specific product
 
-## Install
+## 🔧 Install
 **Option 1:** Download the binaries in the [Releases][releases] page. Windows, macOS and Linux are supported.
 
 **Option 2:** Install it via `cargo`:
@@ -25,7 +24,7 @@ The missing CLI for downloading your Humble Bundle purchases!
 cargo install humble-cli
 ```
 
-## Usage
+## 🚀 Usage 
 
 To start, go to the [Humble Bundle website][hb-site] and log in. Then find the cookie value for `_simpleauth_sess`. This is required to interact with Humble Bundle API. 
 
