@@ -246,8 +246,12 @@ pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
     println!();
     println!("{}", bundle.details.human_name);
     println!();
-    println!("Purchased  : {}", bundle.created.format("%v %I:%M %p"));
-    println!("Total size : {}", util::humanize_bytes(bundle.total_size()));
+    println!("Purchased    : {}", bundle.created.format("%Y-%m-%d"));
+    println!("Amount spent : {} {}", bundle.amount_spent, bundle.currency);
+    println!(
+        "Total size   : {}",
+        util::humanize_bytes(bundle.total_size())
+    );
     println!();
 
     if !bundle.products.is_empty() {
