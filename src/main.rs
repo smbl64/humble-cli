@@ -181,6 +181,16 @@ fn run() -> Result<(), anyhow::Error> {
                     For example, if you specify a limit of 10 MB and a sub-item has two 6 MB books in it, \
                     this sub-items will not be downloaded, because its total size exceeds the 10 MB limit (12 MB in total)."
                     )
+        )
+        .arg(
+            Arg::new("input-list")
+                .short('l')
+                .long("input-list")
+                .takes_value(true)
+                .help("Takes a list input file")
+                .long_help(
+                    "This takes the input created from the list command, then iterates all items, \
+                    Using the bundle name as directory name")
         );
 
     let sub_commands = vec![
