@@ -149,7 +149,11 @@ pub fn search(keywords: &str, match_mode: MatchMode) -> Result<(), anyhow::Error
     Ok(())
 }
 
-pub fn list_bundles(id_only: bool, claimed_filter: &str) -> Result<(), anyhow::Error> {
+pub fn list_bundles(
+    id_only: bool,
+    claimed_filter: &str,
+    bulk_format: bool,
+) -> Result<(), anyhow::Error> {
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
 
@@ -178,6 +182,18 @@ pub fn list_bundles(id_only: bool, claimed_filter: &str) -> Result<(), anyhow::E
     if id_only {
         for b in bundles {
             println!("{}", b.gamekey);
+        }
+
+        return Ok(());
+    } else if bulk_format {
+        for b in bundles {
+            println!(
+                "{},{},{},{}",
+                b.gamekey,
+                b.details.human_name.as_str(),
+                util::humanize_bytes(b.total_size()).as_str(),
+                b.claim_status().to_string().as_str(),
+            );
         }
 
         return Ok(());
@@ -319,6 +335,28 @@ pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
     }
 
     Ok(())
+}
+
+pub fn download_bundles(
+    bundle_list_file: &str,
+    formats: Vec<String>,
+    max_size: u64,
+    torrents_only: bool,
+) -> Result<(), anyhow::Error> {
+    // ---------------------------------------------------------------------------------------------
+    let buffer = fs::read_to_string(bundle_list_file)?;
+
+    let mut entries: Vec<TabledStructure> = Vec::new();
+    let mut lines = buffer.lines();
+
+    for line in lines {
+        let parts: Vec<&str> = line.split(',').collect();
+        let bundle_key: &str = parts[0];
+        download_bundle(bundle_key, formats, max_size, None, torrents_only);
+    }
+
+    //  --------------------------------------------------------------------------------------------
+    todo!()
 }
 
 pub fn download_bundle(
