@@ -487,8 +487,5 @@ fn create_dir(dir: &str) -> Result<path::PathBuf, std::io::Error> {
 
 fn open_dir(dir: &str) -> Result<path::PathBuf, std::io::Error> {
     let dir = path::Path::new(dir).to_owned();
-    if !dir.exists() {
-        fs::create_dir(&dir)?;
-    }
     Ok(dir)
 }
