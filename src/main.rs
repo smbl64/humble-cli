@@ -59,7 +59,7 @@ fn run() -> Result<(), anyhow::Error> {
         .arg(
             Arg::new("SHELL")
                 .help("Shell type to generate completions for")
-                .possible_values(&["bash", "elvish", "fish", "powershell", "zsh"])
+                .possible_values(["bash", "elvish", "fish", "powershell", "zsh"])
                 .takes_value(true)
                 .required(true)
                 .value_parser(value_parser!(Shell)),
@@ -304,7 +304,7 @@ fn run() -> Result<(), anyhow::Error> {
             };
             let item_numbers = sub_matches.value_of("item-numbers");
             let torrents_only = sub_matches.is_present("torrents");
-            download_bundle(bundle_key, formats, max_size, item_numbers, torrents_only)
+            download_bundle(bundle_key, &formats, max_size, item_numbers, torrents_only)
         }
         Some(("list", sub_matches)) => {
             let id_only = sub_matches.is_present("id-only");

@@ -346,22 +346,31 @@ pub fn download_bundles(
     // ---------------------------------------------------------------------------------------------
     let buffer = fs::read_to_string(bundle_list_file)?;
 
-    let mut entries: Vec<TabledStructure> = Vec::new();
-    let mut lines = buffer.lines();
-
+    let mut err_vec: Vec<(String, anyhow::Error)> = Vec::new();
+    let lines = buffer.lines();
     for line in lines {
         let parts: Vec<&str> = line.split(',').collect();
         let bundle_key: &str = parts[0];
-        download_bundle(bundle_key, formats, max_size, None, torrents_only);
+        let bundle_name: &str = parts[0];
+
+        if let Err(download_err) =
+            download_bundle(bundle_key, &formats, max_size, None, torrents_only)
+        {
+            err_vec.push((String::from(bundle_name), download_err));
+        }
     }
 
     //  --------------------------------------------------------------------------------------------
-    todo!()
+    for err_item in err_vec {
+        println!("Error handeling: {}", err_item.0);
+        println!("Error: {}", err_item.1);
+    }
+    Ok(())
 }
 
 pub fn download_bundle(
     bundle_key: &str,
-    formats: Vec<String>,
+    formats: &[String],
     max_size: u64,
     item_numbers: Option<&str>,
     torrents_only: bool,
@@ -397,9 +406,7 @@ pub fn download_bundle(
         .filter(|&(i, _)| item_numbers.is_empty() || item_numbers.contains(&(i + 1)))
         .map(|(_, p)| p)
         .filter(|p| max_size == 0 || p.total_size() < max_size)
-        .filter(|p| {
-            formats.is_empty() || util::str_vectors_intersect(&p.formats_as_vec(), &formats)
-        })
+        .filter(|p| formats.is_empty() || util::str_vectors_intersect(&p.formats_as_vec(), formats))
         .collect::<Vec<_>>();
 
     if products.is_empty() {
@@ -443,13 +450,13 @@ pub fn download_bundle(
                     &dl_info.url.web
                 };
 
-                let filename = util::extract_filename_from_url(&download_url)
-                    .context(format!("Cannot get file name from URL '{}'", &download_url))?;
+                let filename = util::extract_filename_from_url(download_url)
+                    .context(format!("Cannot get file name from URL '{}'", download_url))?;
                 let download_path = entry_dir.join(&filename);
 
                 let f = download::download_file(
                     &client,
-                    &download_url,
+                    download_url,
                     download_path.to_str().unwrap(),
                     &filename,
                 );
