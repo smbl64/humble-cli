@@ -342,6 +342,7 @@ pub fn download_bundles(
     formats: Vec<String>,
     max_size: u64,
     torrents_only: bool,
+    cur_dir: bool,
 ) -> Result<(), anyhow::Error> {
     // ---------------------------------------------------------------------------------------------
     let buffer = fs::read_to_string(bundle_list_file)?;
@@ -351,10 +352,14 @@ pub fn download_bundles(
     for line in lines {
         let parts: Vec<&str> = line.split(',').collect();
         let bundle_key: &str = parts[0];
-        let bundle_name: &str = parts[0];
+        let bundle_name: &str = if !parts.is_empty() {
+            parts[1]
+        } else {
+            parts[0]
+        };
 
         if let Err(download_err) =
-            download_bundle(bundle_key, &formats, max_size, None, torrents_only)
+            download_bundle(bundle_key, &formats, max_size, None, torrents_only, cur_dir)
         {
             err_vec.push((String::from(bundle_name), download_err));
         }
@@ -374,6 +379,7 @@ pub fn download_bundle(
     max_size: u64,
     item_numbers: Option<&str>,
     torrents_only: bool,
+    cur_dir: bool,
 ) -> Result<(), anyhow::Error> {
     let config = get_config()?;
 
@@ -416,7 +422,10 @@ pub fn download_bundle(
 
     // Create the bundle directory
     let dir_name = util::replace_invalid_chars_in_filename(&bundle.details.human_name);
-    let bundle_dir = create_dir(&dir_name)?;
+    let bundle_dir = match cur_dir {
+        false => create_dir(&dir_name)?,
+        true => open_dir(".")?,
+    };
 
     let http_read_timeout = Duration::from_secs(30);
     let client = reqwest::Client::builder()
@@ -469,6 +478,14 @@ pub fn download_bundle(
 }
 
 fn create_dir(dir: &str) -> Result<path::PathBuf, std::io::Error> {
+    let dir = path::Path::new(dir).to_owned();
+    if !dir.exists() {
+        fs::create_dir(&dir)?;
+    }
+    Ok(dir)
+}
+
+fn open_dir(dir: &str) -> Result<path::PathBuf, std::io::Error> {
     let dir = path::Path::new(dir).to_owned();
     if !dir.exists() {
         fs::create_dir(&dir)?;

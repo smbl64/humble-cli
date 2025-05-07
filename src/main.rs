@@ -187,6 +187,16 @@ fn run() -> Result<(), anyhow::Error> {
                     For example, if you specify a limit of 10 MB and a sub-item has two 6 MB books in it, \
                     this sub-items will not be downloaded, because its total size exceeds the 10 MB limit (12 MB in total)."
                     )
+        ).arg(
+            Arg::new("cur-dir")
+                .short('c')
+                .long("cur-dir")
+                .takes_value(false)
+                .help("Download into current dir")
+                .long_help(
+                    "One Directoy for each entry is created, \
+                    but no bundle directory is created."
+                )
         );
 
     let bulk_download_subcommand = Command::new("bulk-download")
@@ -240,6 +250,16 @@ fn run() -> Result<(), anyhow::Error> {
                     For example, if you specify a limit of 10 MB and a sub-item has two 6 MB books in it, \
                     this sub-items will not be downloaded, because its total size exceeds the 10 MB limit (12 MB in total)."
                     )
+        ).arg(
+            Arg::new("cur-dir")
+                .short('c')
+                .long("cur-dir")
+                .takes_value(false)
+                .help("Download into current dir")
+                .long_help(
+                    "One Directoy for each entry is created, \
+                    but no bundle directory is created."
+                )
         );
 
     let sub_commands = vec![
@@ -304,7 +324,15 @@ fn run() -> Result<(), anyhow::Error> {
             };
             let item_numbers = sub_matches.value_of("item-numbers");
             let torrents_only = sub_matches.is_present("torrents");
-            download_bundle(bundle_key, &formats, max_size, item_numbers, torrents_only)
+            let cur_dir = sub_matches.is_present("cur-dir");
+            download_bundle(
+                bundle_key,
+                &formats,
+                max_size,
+                item_numbers,
+                torrents_only,
+                cur_dir,
+            )
         }
         Some(("list", sub_matches)) => {
             let id_only = sub_matches.is_present("id-only");
@@ -333,7 +361,8 @@ fn run() -> Result<(), anyhow::Error> {
                 0
             };
             let torrents_only = sub_matches.is_present("torrents");
-            download_bundles(bundle_file, formats, max_size, torrents_only)
+            let cur_dir = sub_matches.is_present("cur-dir");
+            download_bundles(bundle_file, formats, max_size, torrents_only, cur_dir)
         }
         // This shouldn't happen
         _ => Ok(()),
