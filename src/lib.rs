@@ -483,46 +483,27 @@ fn validate_fields(fields: &[String]) -> bool {
 
 fn bulk_format(fields: &[String], bundles: &[Bundle]) -> Result<(), anyhow::Error> {
     if !validate_fields(fields) {
-        return Err(anyhow!("invalid field in fields: {:?}", fields));
+        return Err(anyhow!("invalid field in fields: {}", fields.join(",")));
     }
     let print_key = fields.contains(&VALID_FIELDS[0].to_lowercase());
     let print_name = fields.contains(&VALID_FIELDS[1].to_lowercase());
     let print_size = fields.contains(&VALID_FIELDS[2].to_lowercase());
     let print_claimed = fields.contains(&VALID_FIELDS[3].to_lowercase());
     for b in bundles {
-        let print_string = if print_key {
-            b.gamekey.clone()
-        } else {
-            String::new()
+        let mut print_vec: Vec<String> = Vec::new();
+        if print_key {
+            print_vec.push(b.gamekey.clone());
         };
-        let print_string = if print_name {
-            format!(
-                "{},{}",
-                print_string.as_str(),
-                b.details.human_name.as_str()
-            )
-        } else {
-            print_string
+        if print_name {
+            print_vec.push(b.details.human_name.clone());
         };
-        let print_string = if print_size {
-            format!(
-                "{},{}",
-                print_string.as_str(),
-                util::humanize_bytes(b.total_size()).as_str()
-            )
-        } else {
-            print_string
+        if print_size {
+            print_vec.push(util::humanize_bytes(b.total_size()))
         };
-        let print_string = if print_claimed {
-            format!(
-                "{},{}",
-                print_string.as_str(),
-                b.claim_status().to_string().as_str()
-            )
-        } else {
-            print_string
+        if print_claimed {
+            print_vec.push(b.claim_status().to_string())
         };
-        println!("{}", print_string);
+        println!("{}", print_vec.join(","));
     }
     Ok(())
 }
