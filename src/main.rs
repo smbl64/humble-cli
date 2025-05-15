@@ -333,7 +333,7 @@ fn run() -> Result<(), anyhow::Error> {
             )
         }
         Some(("list", sub_matches)) => {
-            let fields = if let Some(values) = sub_matches.values_of("fields") {
+            let fields = if let Some(values) = sub_matches.values_of("field") {
                 values.map(|f| f.to_lowercase()).collect::<Vec<_>>()
             } else {
                 vec![]
