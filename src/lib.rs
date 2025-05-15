@@ -176,13 +176,7 @@ pub fn list_bundles(fields: Vec<String>, claimed_filter: &str) -> Result<(), any
         });
     }
 
-    if key_only {
-        for b in bundles {
-            println!("{}", b.gamekey);
-        }
-
-        return Ok(());
-    } else if !fields.is_empty() {
+    if !fields.is_empty() {
         return bulk_format(&fields, &bundles);
     }
 
