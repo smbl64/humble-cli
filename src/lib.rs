@@ -149,18 +149,15 @@ pub fn search(keywords: &str, match_mode: MatchMode) -> Result<(), anyhow::Error
     Ok(())
 }
 
-pub fn list_bundles(
-    id_only: bool,
-    claimed_filter: &str,
-    bulk_format: bool,
-) -> Result<(), anyhow::Error> {
+pub fn list_bundles(fields: Vec<String>, claimed_filter: &str) -> Result<(), anyhow::Error> {
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
+    let key_only = fields.len() == 1 && fields[0] == "key";
 
     // If no filter is required, we can do a single call
     // and finish quickly. Otherwise we will need to fetch
     // all bundle data and filter them.
-    if id_only && claimed_filter == "all" {
+    if key_only && claimed_filter == "all" {
         let ids = handle_http_errors(api.list_bundle_keys())?;
         for id in ids {
             println!("{}", id);
@@ -179,24 +176,14 @@ pub fn list_bundles(
         });
     }
 
-    if id_only {
+    if key_only {
         for b in bundles {
             println!("{}", b.gamekey);
         }
 
         return Ok(());
-    } else if bulk_format {
-        for b in bundles {
-            println!(
-                "{},{},{},{}",
-                b.gamekey,
-                b.details.human_name.as_str(),
-                util::humanize_bytes(b.total_size()).as_str(),
-                b.claim_status().to_string().as_str(),
-            );
-        }
-
-        return Ok(());
+    } else if !fields.is_empty() {
+        return bulk_format(&fields, &bundles);
     }
 
     println!("{} bundle(s) found.\n", bundles.len());
@@ -488,4 +475,60 @@ fn create_dir(dir: &str) -> Result<path::PathBuf, std::io::Error> {
 fn open_dir(dir: &str) -> Result<path::PathBuf, std::io::Error> {
     let dir = path::Path::new(dir).to_owned();
     Ok(dir)
+}
+const VALID_FIELDS: [&str; 4] = ["key", "name", "size", "claimed"];
+
+fn validate_fields(fields: &[String]) -> bool {
+    for field in fields {
+        if !VALID_FIELDS.contains(&field.to_lowercase().as_str()) {
+            return false;
+        }
+    }
+    true
+}
+
+fn bulk_format(fields: &[String], bundles: &[Bundle]) -> Result<(), anyhow::Error> {
+    if !validate_fields(fields) {
+        return Err(anyhow!("invalid field in fields: {:?}", fields));
+    }
+    let print_key = fields.contains(&VALID_FIELDS[0].to_lowercase());
+    let print_name = fields.contains(&VALID_FIELDS[1].to_lowercase());
+    let print_size = fields.contains(&VALID_FIELDS[2].to_lowercase());
+    let print_claimed = fields.contains(&VALID_FIELDS[3].to_lowercase());
+    for b in bundles {
+        let print_string = if print_key {
+            b.gamekey.clone()
+        } else {
+            String::new()
+        };
+        let print_string = if print_name {
+            format!(
+                "{},{}",
+                print_string.as_str(),
+                b.details.human_name.as_str()
+            )
+        } else {
+            print_string
+        };
+        let print_string = if print_size {
+            format!(
+                "{},{}",
+                print_string.as_str(),
+                util::humanize_bytes(b.total_size()).as_str()
+            )
+        } else {
+            print_string
+        };
+        let print_string = if print_claimed {
+            format!(
+                "{},{}",
+                print_string.as_str(),
+                b.claim_status().to_string().as_str()
+            )
+        } else {
+            print_string
+        };
+        println!("{}", print_string);
+    }
+    Ok(())
 }

@@ -26,11 +26,15 @@ fn run() -> Result<(), anyhow::Error> {
         .about("List all your purchased bundles")
         .visible_alias("ls")
         .arg(
-        Arg::new("id-only")
-            .long("id-only")
-            .help("Print bundle IDs only")
+        Arg::new("fields")
+            .long("fields")
+            .takes_value(true)
+            .multiple_occurrences(true)
+            .help("Print bundle with the specified fields only")
             .long_help(
-                "Print bundle IDs only. This can be used to chain commands together for automation.",
+                "Print bundle with the specified fields only. This can be used to chain commands together for automation. \
+                 If fields are not set, all fields will be printed  \
+                 Use example: --fields id --fields name ",
             ),
     ).arg(
         Arg::new("claimed")
@@ -45,13 +49,6 @@ fn run() -> Result<(), anyhow::Error> {
                 "Show claimed or unclaimed bundles only. \
                     This is useful if you want to know which games or bundles you have not claimed yet."
             )
-    ).arg(
-        Arg::new("bulk-format")
-            .long("bulk-format")
-            .help("Print bundle in bulk-format")
-            .long_help(
-                "Print bundle in bulkd-download format. This can be used to chain commands together for automation.",
-            ),
     );
 
     let completion_subcommand = Command::new("completion")
@@ -335,13 +332,16 @@ fn run() -> Result<(), anyhow::Error> {
             )
         }
         Some(("list", sub_matches)) => {
-            let id_only = sub_matches.is_present("id-only");
-            let bulk_format = sub_matches.is_present("bulk-format");
+            let fields = if let Some(values) = sub_matches.values_of("fields") {
+                values.map(|f| f.to_lowercase()).collect::<Vec<_>>()
+            } else {
+                vec![]
+            };
             let claimed_filter = sub_matches
                 .get_one::<String>("claimed")
                 .map(String::as_str)
                 .unwrap_or("all");
-            list_bundles(id_only, claimed_filter, bulk_format)
+            list_bundles(fields, claimed_filter)
         }
         Some(("list-choices", sub_matches)) => {
             let period: &ChoicePeriod = sub_matches.get_one("period").unwrap();
