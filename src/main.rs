@@ -26,15 +26,16 @@ fn run() -> Result<(), anyhow::Error> {
         .about("List all your purchased bundles")
         .visible_alias("ls")
         .arg(
-        Arg::new("fields")
-            .long("fields")
+        Arg::new("field")
+            .long("field")
             .takes_value(true)
             .multiple_occurrences(true)
             .help("Print bundle with the specified fields only")
             .long_help(
                 "Print bundle with the specified fields only. This can be used to chain commands together for automation. \
                  If fields are not set, all fields will be printed  \
-                 Use example: --fields id --fields name ",
+                 Valid Fields: [key, name, size, claimed] \
+                 Use example: --field key --field name ",
             ),
     ).arg(
         Arg::new("claimed")
