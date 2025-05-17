@@ -11,7 +11,7 @@ where
 
 pub fn humanize_bytes(bytes: u64) -> String {
     let b = Byte::from_u64(bytes).get_appropriate_unit(UnitType::Binary);
-    return format!("{b:.2}");
+    format!("{b:.2}")
 }
 
 // Convert a string representing a byte size (e.g. 12MB) to a number.

@@ -3,7 +3,7 @@ use std::io;
 use anyhow::Context;
 use clap::{builder::ValueParser, value_parser, Arg, Command};
 use clap_complete::Shell;
-use humble_cli::prelude::*;
+use humble_cli::{download_bundles, prelude::*};
 
 fn main() {
     let crate_name = env!("CARGO_PKG_NAME");
@@ -26,11 +26,16 @@ fn run() -> Result<(), anyhow::Error> {
         .about("List all your purchased bundles")
         .visible_alias("ls")
         .arg(
-        Arg::new("id-only")
-            .long("id-only")
-            .help("Print bundle IDs only")
+        Arg::new("field")
+            .long("field")
+            .takes_value(true)
+            .multiple_occurrences(true)
+            .help("Print bundle with the specified fields only")
             .long_help(
-                "Print bundle IDs only. This can be used to chain commands together for automation.",
+                "Print bundle with the specified fields only. This can be used to chain commands together for automation. \
+                 If fields are not set, all fields will be printed  \
+                 Valid Fields: [key, name, size, claimed] \
+                 Use example: --field key --field name ",
             ),
     ).arg(
         Arg::new("claimed")
@@ -52,7 +57,7 @@ fn run() -> Result<(), anyhow::Error> {
         .arg(
             Arg::new("SHELL")
                 .help("Shell type to generate completions for")
-                .possible_values(&["bash", "elvish", "fish", "powershell", "zsh"])
+                .possible_values(["bash", "elvish", "fish", "powershell", "zsh"])
                 .takes_value(true)
                 .required(true)
                 .value_parser(value_parser!(Shell)),
@@ -112,7 +117,6 @@ fn run() -> Result<(), anyhow::Error> {
                 .value_parser(ValueParser::new(parse_match_mode))
                 .help("Whether all or any of the keywords should match the name"),
         );
-
     let download_subcommand = Command::new("download")
         .about("Selectively download items from a bundle")
         .visible_alias("d")
@@ -181,6 +185,79 @@ fn run() -> Result<(), anyhow::Error> {
                     For example, if you specify a limit of 10 MB and a sub-item has two 6 MB books in it, \
                     this sub-items will not be downloaded, because its total size exceeds the 10 MB limit (12 MB in total)."
                     )
+        ).arg(
+            Arg::new("cur-dir")
+                .short('c')
+                .long("cur-dir")
+                .takes_value(false)
+                .help("Download into current dir")
+                .long_help(
+                    "One Directoy for each entry is created, \
+                    but no bundle directory is created."
+                )
+        );
+
+    let bulk_download_subcommand = Command::new("bulk-download")
+        .about("Selectively download items from a bundle")
+        .visible_alias("b")
+        .arg(
+            Arg::new("INPUT-FILE")
+                .required(true)
+                .help("Takes a list input file")
+                .long_help(
+                    "This takes the input created from the list command, then iterates all items, \
+                    Using the bundle name as directory name")
+        )
+        .arg(
+            Arg::new("format")
+                .short('f')
+                .long("format")
+                .takes_value(true)
+                .multiple_occurrences(true)
+                .help("Filter downloaded items by their format")
+                .long_help(
+                    "Filter downloaded files by their format. Formats are case-insensitive and \
+                    this filter can be used several times to specify multiple formats.\n\n\
+                    For example: --filter-by-format epub --filter-by-format mobi"
+                )
+        )
+        .arg(
+            Arg::new("torrents")
+                .short('t')
+                .long("torrents")
+                .takes_value(false)
+                .help("Download only .torrent files for items")
+                .long_help(
+                    "Download only the BitTorrent files for the given items. This will prevent \
+                    all the original files from downloading. To download both, run again without \
+                    this flag."
+                )
+        )
+        .arg(
+            Arg::new("max-size")
+                .short('s')
+                .long("max-size")
+                .takes_value(true)
+                .help("Filter downloaded items by their maximum size")
+                .long_help(
+                    "Filter downloaded items by their maximum size. This will skip any sub-item in a bundle \
+                    that exceeds this limit. \
+                    You can use the traditional size units such as KB or MiB. Make sure there is no space \
+                    between the number and the unit. For example 14MB or 4GiB.\n\n\
+                    Note: The size limit works on a sub-item level, and not per file. \
+                    For example, if you specify a limit of 10 MB and a sub-item has two 6 MB books in it, \
+                    this sub-items will not be downloaded, because its total size exceeds the 10 MB limit (12 MB in total)."
+                    )
+        ).arg(
+            Arg::new("cur-dir")
+                .short('c')
+                .long("cur-dir")
+                .takes_value(false)
+                .help("Download into current dir")
+                .long_help(
+                    "One Directoy for each entry is created, \
+                    but no bundle directory is created."
+                )
         );
 
     let sub_commands = vec![
@@ -191,6 +268,7 @@ fn run() -> Result<(), anyhow::Error> {
         download_subcommand,
         search_subcommand,
         completion_subcommand,
+        bulk_download_subcommand,
     ];
 
     let crate_name = clap::crate_name!();
@@ -204,7 +282,7 @@ fn run() -> Result<(), anyhow::Error> {
         .subcommands(sub_commands);
 
     let matches = root.clone().get_matches();
-    return match matches.subcommand() {
+    match matches.subcommand() {
         Some(("completion", sub_matches)) => {
             if let Some(g) = sub_matches.get_one::<Shell>("SHELL").copied() {
                 let crate_name = clap::crate_name!();
@@ -244,22 +322,50 @@ fn run() -> Result<(), anyhow::Error> {
             };
             let item_numbers = sub_matches.value_of("item-numbers");
             let torrents_only = sub_matches.is_present("torrents");
-            download_bundle(bundle_key, formats, max_size, item_numbers, torrents_only)
+            let cur_dir = sub_matches.is_present("cur-dir");
+            download_bundle(
+                bundle_key,
+                &formats,
+                max_size,
+                item_numbers,
+                torrents_only,
+                cur_dir,
+            )
         }
         Some(("list", sub_matches)) => {
-            let id_only = sub_matches.is_present("id-only");
+            let fields = if let Some(values) = sub_matches.values_of("field") {
+                values.map(|f| f.to_lowercase()).collect::<Vec<_>>()
+            } else {
+                vec![]
+            };
             let claimed_filter = sub_matches
                 .get_one::<String>("claimed")
                 .map(String::as_str)
                 .unwrap_or("all");
-            list_bundles(id_only, claimed_filter)
+            list_bundles(fields, claimed_filter)
         }
         Some(("list-choices", sub_matches)) => {
             let period: &ChoicePeriod = sub_matches.get_one("period").unwrap();
             list_humble_choices(period)
         }
-
+        Some(("bulk-download", sub_matches)) => {
+            let bundle_file = sub_matches.value_of("INPUT-FILE").unwrap();
+            let formats = if let Some(values) = sub_matches.values_of("format") {
+                values.map(|f| f.to_lowercase()).collect::<Vec<_>>()
+            } else {
+                vec![]
+            };
+            let max_size: u64 = if let Some(byte_str) = sub_matches.value_of("max-size") {
+                byte_string_to_number(byte_str)
+                    .context(format!("failed to parse the specified size: {}", byte_str))?
+            } else {
+                0
+            };
+            let torrents_only = sub_matches.is_present("torrents");
+            let cur_dir = sub_matches.is_present("cur-dir");
+            download_bundles(bundle_file, formats, max_size, torrents_only, cur_dir)
+        }
         // This shouldn't happen
         _ => Ok(()),
-    };
+    }
 }

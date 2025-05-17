@@ -149,14 +149,15 @@ pub fn search(keywords: &str, match_mode: MatchMode) -> Result<(), anyhow::Error
     Ok(())
 }
 
-pub fn list_bundles(id_only: bool, claimed_filter: &str) -> Result<(), anyhow::Error> {
+pub fn list_bundles(fields: Vec<String>, claimed_filter: &str) -> Result<(), anyhow::Error> {
     let config = get_config()?;
     let api = HumbleApi::new(&config.session_key);
+    let key_only = fields.len() == 1 && fields[0] == "key";
 
     // If no filter is required, we can do a single call
     // and finish quickly. Otherwise we will need to fetch
     // all bundle data and filter them.
-    if id_only && claimed_filter == "all" {
+    if key_only && claimed_filter == "all" {
         let ids = handle_http_errors(api.list_bundle_keys())?;
         for id in ids {
             println!("{}", id);
@@ -175,12 +176,8 @@ pub fn list_bundles(id_only: bool, claimed_filter: &str) -> Result<(), anyhow::E
         });
     }
 
-    if id_only {
-        for b in bundles {
-            println!("{}", b.gamekey);
-        }
-
-        return Ok(());
+    if !fields.is_empty() {
+        return bulk_format(&fields, &bundles);
     }
 
     println!("{} bundle(s) found.\n", bundles.len());
@@ -321,12 +318,49 @@ pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+pub fn download_bundles(
+    bundle_list_file: &str,
+    formats: Vec<String>,
+    max_size: u64,
+    torrents_only: bool,
+    cur_dir: bool,
+) -> Result<(), anyhow::Error> {
+    // ---------------------------------------------------------------------------------------------
+    let buffer = fs::read_to_string(bundle_list_file)?;
+
+    let mut err_vec: Vec<(String, anyhow::Error)> = Vec::new();
+    let lines = buffer.lines();
+    for line in lines {
+        let parts: Vec<&str> = line.split(',').collect();
+        let bundle_key: &str = parts[0];
+        let bundle_name: &str = if !parts.is_empty() {
+            parts[1]
+        } else {
+            parts[0]
+        };
+
+        if let Err(download_err) =
+            download_bundle(bundle_key, &formats, max_size, None, torrents_only, cur_dir)
+        {
+            err_vec.push((String::from(bundle_name), download_err));
+        }
+    }
+
+    //  --------------------------------------------------------------------------------------------
+    for err_item in err_vec {
+        println!("Error handeling: {}", err_item.0);
+        println!("Error: {}", err_item.1);
+    }
+    Ok(())
+}
+
 pub fn download_bundle(
     bundle_key: &str,
-    formats: Vec<String>,
+    formats: &[String],
     max_size: u64,
     item_numbers: Option<&str>,
     torrents_only: bool,
+    cur_dir: bool,
 ) -> Result<(), anyhow::Error> {
     let config = get_config()?;
 
@@ -359,9 +393,7 @@ pub fn download_bundle(
         .filter(|&(i, _)| item_numbers.is_empty() || item_numbers.contains(&(i + 1)))
         .map(|(_, p)| p)
         .filter(|p| max_size == 0 || p.total_size() < max_size)
-        .filter(|p| {
-            formats.is_empty() || util::str_vectors_intersect(&p.formats_as_vec(), &formats)
-        })
+        .filter(|p| formats.is_empty() || util::str_vectors_intersect(&p.formats_as_vec(), formats))
         .collect::<Vec<_>>();
 
     if products.is_empty() {
@@ -371,7 +403,10 @@ pub fn download_bundle(
 
     // Create the bundle directory
     let dir_name = util::replace_invalid_chars_in_filename(&bundle.details.human_name);
-    let bundle_dir = create_dir(&dir_name)?;
+    let bundle_dir = match cur_dir {
+        false => create_dir(&dir_name)?,
+        true => open_dir(".")?,
+    };
 
     let http_read_timeout = Duration::from_secs(30);
     let client = reqwest::Client::builder()
@@ -405,13 +440,13 @@ pub fn download_bundle(
                     &dl_info.url.web
                 };
 
-                let filename = util::extract_filename_from_url(&download_url)
-                    .context(format!("Cannot get file name from URL '{}'", &download_url))?;
+                let filename = util::extract_filename_from_url(download_url)
+                    .context(format!("Cannot get file name from URL '{}'", download_url))?;
                 let download_path = entry_dir.join(&filename);
 
                 let f = download::download_file(
                     &client,
-                    &download_url,
+                    download_url,
                     download_path.to_str().unwrap(),
                     &filename,
                 );
@@ -429,4 +464,46 @@ fn create_dir(dir: &str) -> Result<path::PathBuf, std::io::Error> {
         fs::create_dir(&dir)?;
     }
     Ok(dir)
+}
+
+fn open_dir(dir: &str) -> Result<path::PathBuf, std::io::Error> {
+    let dir = path::Path::new(dir).to_owned();
+    Ok(dir)
+}
+const VALID_FIELDS: [&str; 4] = ["key", "name", "size", "claimed"];
+
+fn validate_fields(fields: &[String]) -> bool {
+    for field in fields {
+        if !VALID_FIELDS.contains(&field.to_lowercase().as_str()) {
+            return false;
+        }
+    }
+    true
+}
+
+fn bulk_format(fields: &[String], bundles: &[Bundle]) -> Result<(), anyhow::Error> {
+    if !validate_fields(fields) {
+        return Err(anyhow!("invalid field in fields: {}", fields.join(",")));
+    }
+    let print_key = fields.contains(&VALID_FIELDS[0].to_lowercase());
+    let print_name = fields.contains(&VALID_FIELDS[1].to_lowercase());
+    let print_size = fields.contains(&VALID_FIELDS[2].to_lowercase());
+    let print_claimed = fields.contains(&VALID_FIELDS[3].to_lowercase());
+    for b in bundles {
+        let mut print_vec: Vec<String> = Vec::new();
+        if print_key {
+            print_vec.push(b.gamekey.clone());
+        };
+        if print_name {
+            print_vec.push(b.details.human_name.clone());
+        };
+        if print_size {
+            print_vec.push(util::humanize_bytes(b.total_size()))
+        };
+        if print_claimed {
+            print_vec.push(b.claim_status().to_string())
+        };
+        println!("{}", print_vec.join(","));
+    }
+    Ok(())
 }
