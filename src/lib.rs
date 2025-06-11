@@ -244,7 +244,10 @@ pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
     println!("{}", bundle.details.human_name);
     println!();
     println!("Purchased    : {}", bundle.created.format("%Y-%m-%d"));
-    println!("Amount spent : {} {}", bundle.amount_spent, bundle.currency);
+    if let (Some(amount), Some(currency)) = (bundle.amount_spent.as_ref(), bundle.currency.as_ref())
+    {
+        println!("Amount spent : {} {}", amount, currency);
+    }
     println!(
         "Total size   : {}",
         util::humanize_bytes(bundle.total_size())

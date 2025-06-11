@@ -43,8 +43,8 @@ pub struct Bundle {
     #[serde_as(as = "VecSkipError<_>")]
     pub products: Vec<Product>,
 
-    pub amount_spent: f64,
-    pub currency: String,
+    pub amount_spent: Option<f64>,
+    pub currency: Option<String>,
 }
 
 pub struct ProductKey {
