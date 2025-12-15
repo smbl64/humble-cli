@@ -90,8 +90,8 @@ pub fn list_humble_choices(period: &ChoicePeriod) -> Result<(), anyhow::Error> {
     let table = builder
         .build()
         .with(Style::psql())
-        .with(Modify::new(Columns::single(0)).with(Alignment::right()))
-        .with(Modify::new(Columns::single(1)).with(Alignment::left()))
+        .with(Modify::new(Columns::new(0..=0)).with(Alignment::right()))
+        .with(Modify::new(Columns::new(1..=1)).with(Alignment::left()))
         .to_string();
 
     println!("{table}");
@@ -140,8 +140,7 @@ pub fn search(keywords: &str, match_mode: MatchMode) -> Result<(), anyhow::Error
     let table = builder
         .build()
         .with(Style::psql())
-        .with(Modify::new(Columns::single(1)).with(Alignment::left()))
-        .with(Modify::new(Columns::single(2)).with(Alignment::left()))
+        .with(Modify::new(Columns::new(1..=2)).with(Alignment::left()))
         .with(Merge::vertical())
         .to_string();
 
@@ -201,8 +200,8 @@ pub fn list_bundles(fields: Vec<String>, claimed_filter: &str) -> Result<(), any
     let table = builder
         .build()
         .with(Style::psql())
-        .with(Modify::new(Columns::single(1)).with(Alignment::left()))
-        .with(Modify::new(Columns::single(2)).with(Alignment::right()))
+        .with(Modify::new(Columns::new(1..=1)).with(Alignment::left()))
+        .with(Modify::new(Columns::new(2..=2)).with(Alignment::right()))
         .to_string();
     println!("{table}");
 
@@ -269,10 +268,10 @@ pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
         let table = builder
             .build()
             .with(Style::psql())
-            .with(Modify::new(Columns::single(0)).with(Alignment::right()))
-            .with(Modify::new(Columns::single(1)).with(Alignment::left()))
-            .with(Modify::new(Columns::single(2)).with(Alignment::left()))
-            .with(Modify::new(Columns::single(3)).with(Alignment::right()))
+            .with(Modify::new(Columns::new(0..=0)).with(Alignment::right()))
+            .with(Modify::new(Columns::new(1..=1)).with(Alignment::left()))
+            .with(Modify::new(Columns::new(2..=2)).with(Alignment::left()))
+            .with(Modify::new(Columns::new(3..=3)).with(Alignment::right()))
             .to_string();
 
         println!("{table}");
@@ -305,9 +304,9 @@ pub fn show_bundle_details(bundle_key: &str) -> Result<(), anyhow::Error> {
         let table = builder
             .build()
             .with(Style::psql())
-            .with(Modify::new(Columns::single(0)).with(Alignment::right()))
-            .with(Modify::new(Columns::single(1)).with(Alignment::left()))
-            .with(Modify::new(Columns::single(2)).with(Alignment::center()))
+            .with(Modify::new(Columns::new(0..=0)).with(Alignment::right()))
+            .with(Modify::new(Columns::new(1..=1)).with(Alignment::left()))
+            .with(Modify::new(Columns::new(2..=2)).with(Alignment::center()))
             .to_string();
 
         println!("{table}");
