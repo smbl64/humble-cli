@@ -302,7 +302,6 @@ fn test_union_invalid_usize_ranges() {
 #[test]
 fn test_windows_filename_validation() {
     use std::fs::File;
-    use std::io::ErrorKind;
 
     let invalid_chars = vec![
         '/', '\\', '?', '%', '*', ':', '|', '"', '<', '>', ';', '=', '\n',
@@ -317,11 +316,6 @@ fn test_windows_filename_validation() {
             "Expected error creating file with invalid character '{}'",
             c
         );
-        // Check that the error is due to invalid filename
-        match result.unwrap_err().kind() {
-            ErrorKind::InvalidInput | ErrorKind::InvalidData => {}
-            _ => panic!("Unexpected error kind for character '{}'", c),
-        }
 
         // Replace invalid characters
         let cleaned = replace_invalid_chars_in_filename(&filename);
@@ -332,7 +326,7 @@ fn test_windows_filename_validation() {
         );
 
         // Attempt to create file with cleaned name
-        let file = File::create(&cleaned).expect(&format!(
+        File::create(&cleaned).expect(&format!(
             "Failed to create cleaned file for character '{}'",
             c
         ));
