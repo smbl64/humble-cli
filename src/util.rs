@@ -23,7 +23,7 @@ pub fn byte_string_to_number(byte_string: &str) -> Option<u64> {
 pub fn replace_invalid_chars_in_filename(input: &str) -> String {
     let replacement: char = ' ';
     let invalid_chars: Vec<char> =
-        vec!['/', '\\', '?', '%', '*', ':', '|', '"', '<', '>', ';', '='];
+        vec!['/', '\\', '?', '%', '*', ':', '|', '"', '<', '>', ';', '=', '\n'];
 
     input
         .chars()
@@ -152,6 +152,7 @@ fn test_remove_invalid_chars() {
     let test_data = vec![
         ("Humble Bundle: Nice book", "Humble Bundle  Nice book"),
         ("::Make::", "Make"),
+        ("Test\nFile", "Test File"),
     ];
 
     for (input, expected) in test_data {
