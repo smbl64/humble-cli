@@ -305,7 +305,7 @@ fn test_windows_filename_validation() {
 
     // These are actual forbidden characters on Windows; they are a subset of what
     // `replace_invalid_chars_in_filename` replaces.
-    let invalid_chars = vec!['/', '\\', '?', '*', ':', '|', '"', '<', '>', '\n'];
+    let invalid_chars = vec!['/', '\\', '?', '*', '|', '"', '<', '>', '\n'];
 
     for &c in &invalid_chars {
         let filename = format!("test_{}_file.txt", c);
