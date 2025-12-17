@@ -22,8 +22,9 @@ pub fn byte_string_to_number(byte_string: &str) -> Option<u64> {
 
 pub fn replace_invalid_chars_in_filename(input: &str) -> String {
     let replacement: char = ' ';
-    let invalid_chars: Vec<char> =
-        vec!['/', '\\', '?', '%', '*', ':', '|', '"', '<', '>', ';', '='];
+    let invalid_chars: Vec<char> = vec![
+        '/', '\\', '?', '%', '*', ':', '|', '"', '<', '>', ';', '=', '\n',
+    ];
 
     input
         .chars()
@@ -152,6 +153,7 @@ fn test_remove_invalid_chars() {
     let test_data = vec![
         ("Humble Bundle: Nice book", "Humble Bundle  Nice book"),
         ("::Make::", "Make"),
+        ("Test\nFile", "Test File"),
     ];
 
     for (input, expected) in test_data {
@@ -293,5 +295,42 @@ fn test_union_invalid_usize_ranges() {
         assert!(output.is_err(), "{}", assert_msg);
         let output_err_msg: String = output.unwrap_err().downcast().unwrap();
         assert_eq!(output_err_msg, expected_err_msg, "{}", assert_msg);
+    }
+}
+
+#[cfg(target_os = "windows")]
+#[test]
+fn test_windows_filename_validation() {
+    use std::fs::File;
+
+    // These are actual forbidden characters on Windows; they are a subset of what
+    // `replace_invalid_chars_in_filename` replaces.
+    let invalid_chars = vec!['/', '\\', '?', '*', '|', '"', '<', '>', '\n'];
+
+    for &c in &invalid_chars {
+        let filename = format!("test_{}_file.txt", c);
+        // Attempt to create file with invalid character
+        let result = File::create(&filename);
+        assert!(
+            result.is_err(),
+            "Expected error creating file with invalid character '{}'",
+            c
+        );
+
+        // Replace invalid characters
+        let cleaned = replace_invalid_chars_in_filename(&filename);
+        assert_ne!(
+            cleaned, filename,
+            "Filename not cleaned for character '{}'",
+            c
+        );
+
+        // Attempt to create file with cleaned name
+        File::create(&cleaned).expect(&format!(
+            "Failed to create cleaned file for character '{}'",
+            c
+        ));
+        // Clean up the file after test
+        std::fs::remove_file(&cleaned).expect("Failed to remove test file");
     }
 }
