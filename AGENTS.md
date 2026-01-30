@@ -136,7 +136,7 @@ All dependencies use permissive licenses (MIT/BSD/Apache 2.0):
 ### release.yml
 - Triggers: tags matching `v[0-9]+.*`
 - Builds binaries for: Linux (amd64, arm64), macOS (amd64, arm64), Windows (amd64)
-- Creates GitHub release with CHANGELOG.md
+- Creates GitHub release automatically
 - Uploads `.tar.gz` (Unix) and `.zip` (Windows) archives
 
 ### automerge.yml
@@ -175,10 +175,9 @@ All dependencies use permissive licenses (MIT/BSD/Apache 2.0):
 
 1. **Run tests after edits**: `go test ./...`
 2. **Format code**: `go fmt ./...`
-3. **Update CHANGELOG.md** when fixing bugs or adding features
-4. **Check for warnings**: `go build ./...`
-5. **Preserve behavioral parity**: User-facing behavior should match expectations
-6. **Update documentation**: Keep README.md and AGENTS.md in sync
+3. **Check for warnings**: `go build ./...`
+4. **Preserve behavioral parity**: User-facing behavior should match expectations
+5. **Update documentation**: Keep README.md and AGENTS.md in sync
 
 ## Representative Files to Read Before Making Changes
 
