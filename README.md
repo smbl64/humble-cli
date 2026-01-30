@@ -1,8 +1,6 @@
-# humble-cli (Go Version)
+# humble-cli
 
 The missing command-line interface for downloading your Humble Bundle purchases!
-
-**Note:** This is a Go rewrite of the original [Rust version](https://github.com/smbl64/humble-cli), providing 1:1 feature parity with improved performance and easier cross-platform distribution.
 
 ## ✨ Features
 - List all your Humble Bundle purchases
@@ -20,6 +18,7 @@ The missing command-line interface for downloading your Humble Bundle purchases!
 Download the binaries from the Releases page. Windows, macOS, and Linux are supported.
 
 ### Option 2: Install via Go
+
 ```sh
 go install github.com/smbl64/humble-cli/cmd/humble-cli@latest
 ```
@@ -27,7 +26,7 @@ go install github.com/smbl64/humble-cli/cmd/humble-cli@latest
 ### Option 3: Build from Source
 ```sh
 git clone https://github.com/smbl64/humble-cli.git
-cd humble-cli/humble-cli-go
+cd humble-cli
 go build -o humble-cli ./cmd/humble-cli
 ```
 
@@ -149,20 +148,3 @@ go build -o humble-cli ./cmd/humble-cli
 ```sh
 go test ./...
 ```
-
-## 📄 License
-
-Same license as the original Rust version.
-
-## 🙏 Credits
-
-This is a Go port of the excellent [humble-cli](https://github.com/smbl64/humble-cli) Rust project. All credit for the original design and implementation goes to the original author.
-
-## ⚠️ Disclaimer
-
-This tool is not affiliated with or endorsed by Humble Bundle, Inc.
-
-[hb-site]: https://www.humblebundle.com/
-[guide-chrome]: docs/session-key-chrome.md
-[guide-firefox]: docs/session-key-firefox.md
-[guide-safari]: docs/session-key-safari.md
