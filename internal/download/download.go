@@ -22,7 +22,7 @@ func DownloadFile(url, filePath, title string, expectedSize uint64) error {
 	retries := retryCount
 
 	for retries > 0 {
-		err := downloadFileAttempt(url, filePath, title, expectedSize)
+		err := downloadFileAttempt(url, filePath, title)
 		if err == nil {
 			return nil
 		}
@@ -40,11 +40,20 @@ func DownloadFile(url, filePath, title string, expectedSize uint64) error {
 	return fmt.Errorf("download failed after %d attempts", retryCount)
 }
 
+// httpError represents an HTTP error with status code
+type httpError struct {
+	statusCode int
+	message    string
+}
+
+func (e *httpError) Error() string {
+	return e.message
+}
+
 // isRetryable checks if an error should trigger a retry
 func isRetryable(err error) bool {
-	// Retry on network errors and timeouts
-	// Don't retry on 4xx errors (except 408, 429)
-	// Retry on 5xx errors
+	// Only retry on network errors and timeouts
+	// Don't retry on HTTP errors (client or server errors)
 	if err == nil {
 		return false
 	}
@@ -54,19 +63,30 @@ func isRetryable(err error) bool {
 		return true
 	}
 
-	// For HTTP errors, check status code
-	// This is a simplified check - in production you'd want more sophisticated error type checking
+	// Don't retry HTTP errors
+	if _, ok := err.(*httpError); ok {
+		return false
+	}
+
+	// Check if it's a network error (connection refused, DNS, etc.)
+	// by checking if it's NOT an HTTP error and NOT an OS file error
 	return true
 }
 
 // downloadFileAttempt performs a single download attempt
-func downloadFileAttempt(url, filePath, title string, expectedSize uint64) error {
+func downloadFileAttempt(url, filePath, title string) error {
 	// Check if file exists and get current size
 	file, downloaded, err := openFileForWrite(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
+
+	// Get the current content length from the server
+	expectedSize, err := GetContentLength(url)
+	if err != nil {
+		return fmt.Errorf("failed to get content length: %w", err)
+	}
 
 	// If file is already complete, skip
 	if downloaded >= expectedSize {
@@ -97,8 +117,22 @@ func downloadFileAttempt(url, filePath, title string, expectedSize uint64) error
 	defer resp.Body.Close()
 
 	// Check status code
+	if resp.StatusCode == http.StatusRequestedRangeNotSatisfiable {
+		// HTTP 416: Range not satisfiable - file changed or partial file is corrupt
+		// Delete the partial file and start over
+		file.Close()
+		os.Remove(filePath)
+		return &httpError{
+			statusCode: resp.StatusCode,
+			message:    fmt.Sprintf("HTTP 416: partial download invalid, deleted %s to restart", filePath),
+		}
+	}
+
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
-		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
+		return &httpError{
+			statusCode: resp.StatusCode,
+			message:    fmt.Sprintf("HTTP %d: %s", resp.StatusCode, resp.Status),
+		}
 	}
 
 	// Create progress bar
@@ -198,6 +232,14 @@ func GetContentLength(url string) (uint64, error) {
 		defer resp.Body.Close()
 	} else {
 		defer resp.Body.Close()
+	}
+
+	// Check HTTP status code
+	if resp.StatusCode != http.StatusOK {
+		return 0, &httpError{
+			statusCode: resp.StatusCode,
+			message:    fmt.Sprintf("HTTP %d: %s", resp.StatusCode, resp.Status),
+		}
 	}
 
 	if resp.ContentLength < 0 {
