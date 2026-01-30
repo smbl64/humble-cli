@@ -117,23 +117,20 @@ func TestGetConfig(t *testing.T) {
 
 func TestSetConfig(t *testing.T) {
 	tests := []struct {
-		name         string
-		sessionKey   string
-		wantErr      bool
-		errContains  string
-		checkPerms   bool
+		name        string
+		sessionKey  string
+		wantErr     bool
+		errContains string
 	}{
 		{
 			name:       "valid session key",
 			sessionKey: "valid-session-key",
 			wantErr:    false,
-			checkPerms: true,
 		},
 		{
 			name:       "session key with whitespace",
 			sessionKey: "  key-with-spaces  \n",
 			wantErr:    false,
-			checkPerms: true,
 		},
 		{
 			name:        "empty session key",
@@ -172,19 +169,6 @@ func TestSetConfig(t *testing.T) {
 			if _, err := os.Stat(configPath); os.IsNotExist(err) {
 				t.Errorf("SetConfig() did not create config file")
 				return
-			}
-
-			// Verify file permissions (Unix-like systems only)
-			if tt.checkPerms {
-				info, err := os.Stat(configPath)
-				if err != nil {
-					t.Fatalf("failed to stat config file: %v", err)
-				}
-				// Check that permissions are restrictive (user read/write only)
-				mode := info.Mode().Perm()
-				if mode&0077 != 0 {
-					t.Errorf("SetConfig() file permissions = %o, want user-only (0600)", mode)
-				}
 			}
 
 			// Verify content

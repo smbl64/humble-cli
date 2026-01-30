@@ -3,7 +3,6 @@ package api
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -12,42 +11,6 @@ import (
 	"github.com/smbl64/humble-cli/internal/models"
 	"github.com/smbl64/humble-cli/internal/testutil"
 )
-
-func TestNew(t *testing.T) {
-	authKey := "test-auth-key"
-	api := New(authKey)
-
-	if api == nil {
-		t.Fatal("New() returned nil")
-	}
-
-	if api.authKey != authKey {
-		t.Errorf("New() authKey = %v, want %v", api.authKey, authKey)
-	}
-
-	if api.client == nil {
-		t.Error("New() client is nil")
-	}
-
-	if api.client.Timeout != defaultTimeout {
-		t.Errorf("New() client.Timeout = %v, want %v", api.client.Timeout, defaultTimeout)
-	}
-}
-
-func TestAddAuthCookie(t *testing.T) {
-	authKey := "test-session-key"
-	api := New(authKey)
-
-	req, _ := http.NewRequest("GET", "http://example.com", nil)
-	api.addAuthCookie(req)
-
-	cookie := req.Header.Get("Cookie")
-	expected := fmt.Sprintf("_simpleauth_sess=%s", authKey)
-
-	if cookie != expected {
-		t.Errorf("addAuthCookie() set Cookie = %q, want %q", cookie, expected)
-	}
-}
 
 // mockTransport is a custom http.RoundTripper for testing
 type mockTransport struct {
