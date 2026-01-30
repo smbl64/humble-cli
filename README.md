@@ -152,4 +152,5 @@ go test ./...
 [guide-chrome]: https://github.com/smbl64/humble-cli/blob/master/docs/session-key-chrome.md
 [guide-firefox]: https://github.com/smbl64/humble-cli/blob/master/docs/session-key-firefox.md
 [guide-safari]: https://github.com/smbl64/humble-cli/blob/master/docs/session-key-safari.md
+[hb-site]: https://www.humblebundle.com/
 
