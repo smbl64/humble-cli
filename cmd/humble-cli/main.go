@@ -25,9 +25,6 @@ var rootCmd = &cobra.Command{
 	Use:   "humble-cli",
 	Short: "The missing Humble Bundle CLI",
 	Long:  "Command-line tool to interact with Humble Bundle purchases: list bundles, show details, search products, and download items.",
-	CompletionOptions: cobra.CompletionOptions{
-		DisableDefaultCmd: true,
-	},
 }
 
 var authCmd = &cobra.Command{
@@ -159,44 +156,6 @@ using the bundle name as directory name.`,
 	},
 }
 
-var completionCmd = &cobra.Command{
-	Use:   "completion <SHELL>",
-	Short: "Generate shell completions",
-	Long: `Generate shell completion scripts for the specified shell.
-
-Supported shells: bash, zsh, fish, powershell
-
-Example usage:
-  # Bash
-  source <(humble-cli completion bash)
-
-  # Zsh
-  humble-cli completion zsh > "${fpath[1]}/_humble-cli"
-
-  # Fish
-  humble-cli completion fish | source
-
-  # PowerShell
-  humble-cli completion powershell | Out-String | Invoke-Expression
-`,
-	ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
-	Args:      cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		switch args[0] {
-		case "bash":
-			return rootCmd.GenBashCompletion(os.Stdout)
-		case "zsh":
-			return rootCmd.GenZshCompletion(os.Stdout)
-		case "fish":
-			return rootCmd.GenFishCompletion(os.Stdout, true)
-		case "powershell":
-			return rootCmd.GenPowerShellCompletion(os.Stdout)
-		default:
-			return fmt.Errorf("unsupported shell: %s", args[0])
-		}
-	},
-}
-
 func init() {
 	rootCmd.Version = version
 
@@ -232,6 +191,5 @@ func init() {
 		searchCmd,
 		downloadCmd,
 		bulkDownloadCmd,
-		completionCmd,
 	)
 }
