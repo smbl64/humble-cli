@@ -16,8 +16,8 @@ coverage.out
 go.work
 
 # Binary
-humble-cli
-humble-cli-*
+/humble-cli
+/humble-cli-*
 
 # IDE
 .idea/
