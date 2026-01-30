@@ -27,10 +27,6 @@ This document is for automated agents and contributors who will work on the humb
 ├── go.sum                   # Dependency checksums
 ├── Makefile                 # Build automation
 ├── README.md                # User-facing documentation
-├── MIGRATION.md             # Rust-to-Go migration technical details
-├── CHANGELOG.md             # Version history
-├── DEVELOPMENT.md           # Development guide
-└── QUICK_REFERENCE.md       # Quick command reference
 ```
 
 ## Essential Commands
@@ -114,7 +110,7 @@ make clean
 ### JSON Unmarshaling
 - Custom `UnmarshalJSON` on `Bundle` type
 - Silently skips malformed products (partial deserialization)
-- Equivalent to Rust's `serde_with(VecSkipError)`
+- Allows graceful handling of API inconsistencies
 
 ### Testing
 - Test files alongside source: `*_test.go`
@@ -209,32 +205,6 @@ All dependencies use permissive licenses (MIT/BSD/Apache 2.0):
 - No Docker configuration
 - No Homebrew formula (maintained separately if it exists)
 - No shell completions in repo (generated at runtime via Cobra)
-
----
-
-## Legacy: Rust Version (Archived)
-
-This project was originally written in Rust and has been rewritten in Go. The Rust version (v0.20.0 and earlier) is preserved in git history for reference.
-
-### Key Differences from Rust Version
-- **CLI Framework**: Cobra (Go) instead of clap (Rust)
-- **Concurrency**: Goroutines instead of tokio async/await
-- **Error Handling**: Standard Go errors instead of anyhow::Error
-- **JSON**: Custom UnmarshalJSON instead of serde
-- **HTTP**: net/http instead of reqwest
-- **Testing**: Go testing instead of cargo test
-
-### Why Go?
-- Easier cross-platform distribution (static binaries)
-- Simpler contribution path (wider Go adoption)
-- No runtime dependencies
-- Faster compilation
-- Smaller final binary size
-
-### Accessing Rust Version
-- Git history contains all Rust code
-- Last Rust release: v0.20.0
-- Rust source was in: `src/`, `tests/`, `Cargo.toml`
 
 ---
 
