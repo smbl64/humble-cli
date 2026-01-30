@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/tw"
 )
 
 // TableBuilder wraps tablewriter for consistent formatting
@@ -15,30 +16,26 @@ type TableBuilder struct {
 
 // NewTable creates a new table with the given headers
 func NewTable(headers []string) *TableBuilder {
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader(headers)
-	table.SetAutoWrapText(false)
-	table.SetAutoFormatHeaders(true)
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetCenterSeparator("+")
-	table.SetColumnSeparator("|")
-	table.SetRowSeparator("-")
-	table.SetHeaderLine(true)
-	table.SetBorder(false)
-	table.SetTablePadding(" ")
-	table.SetNoWhiteSpace(false)
-
 	// Right-align columns that contain "Size" or "#" in the header
-	columnAlignments := make([]int, len(headers))
+	columnAlignments := make([]tw.Align, len(headers))
 	for i, header := range headers {
 		if strings.Contains(header, "Size") || header == "#" {
-			columnAlignments[i] = tablewriter.ALIGN_RIGHT
+			columnAlignments[i] = tw.AlignRight
 		} else {
-			columnAlignments[i] = tablewriter.ALIGN_LEFT
+			columnAlignments[i] = tw.AlignLeft
 		}
 	}
-	table.SetColumnAlignment(columnAlignments)
+
+	table := tablewriter.NewTable(os.Stdout,
+		tablewriter.WithHeaderAutoFormat(tw.On),
+		tablewriter.WithHeaderAlignment(tw.AlignLeft),
+		tablewriter.WithRowAlignment(tw.AlignLeft),
+		tablewriter.WithRowAlignmentConfig(tw.CellAlignment{
+			PerColumn: columnAlignments,
+		}),
+	)
+
+	table.Header(headers)
 
 	return &TableBuilder{
 		table:   table,
