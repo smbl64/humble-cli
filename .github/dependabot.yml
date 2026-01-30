@@ -1,19 +1,11 @@
 version: 2
 updates:
-  - package-ecosystem: "cargo"
+  - package-ecosystem: "gomod"
     directory: "/"
     schedule:
       interval: "weekly"
-    ignore:
-      - dependency-name: "clap"
-        versions: ["4.x"]
-      - dependency-name: "clap_complete"
-        versions: ["4.x"]
-      - dependency-name: "tabled"
-      
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
-    
-

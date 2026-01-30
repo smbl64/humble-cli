@@ -5,52 +5,47 @@ on:
     branches: [master]
     paths:
       - ".github/workflows/*"
-      - "src/**"
-      - "docs/**"
-      - "Cargo.*"
-      - build.rs
+      - "cmd/**"
+      - "internal/**"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
   pull_request:
     branches: [master]
     paths:
       - ".github/workflows/*"
-      - "src/**"
-      - "docs/**"
-      - "Cargo.*"
-      - build.rs
-
-env:
-  CARGO_TERM_COLOR: always
+      - "cmd/**"
+      - "internal/**"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
 
 jobs:
-  unit-tests:
+  test:
     runs-on: ${{ matrix.os }}
-
-    continue-on-error: ${{ matrix.rust == 'nightly' }}
 
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        rust: [stable, beta]
+        go-version: ['1.21', '1.22', '1.23']
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
+          go-version: ${{ matrix.go-version }}
 
-      - name: Install cargo-hack
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-hack
+      - name: Download dependencies
+        run: go mod download
 
-      - name: Run unit tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: hack
-          args: test --feature-powerset
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Run tests with race detector
+        run: go test -race -v ./...
+
+      - name: Build
+        run: go build -v ./cmd/humble-cli

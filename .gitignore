@@ -1,7 +1,44 @@
-/target
+# Go binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 
-# Temporary files used during the research and development
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.out
+
+# Go workspace file
+go.work
+
+# Binary
+humble-cli
+humble-cli-*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vendor
+vendor/
+
+# Temporary files
 session.key
 TODO.txt
 sample.json
 justfile
+
+# Claude artifacts
+.claude/
+.crush/
