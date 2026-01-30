@@ -11,27 +11,77 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: taiki-e/create-gh-release-action@v1
-        #with:
-          # (optional)
-          #changelog: CHANGELOG.md
+        with:
+          changelog: CHANGELOG.md
         env:
-          # (required)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  upload-assets:
+  build-release:
+    needs: create-release
     strategy:
       matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            asset_name: humble-cli-linux-amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            asset_name: humble-cli-linux-arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            asset_name: humble-cli-darwin-amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            asset_name: humble-cli-darwin-arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            asset_name: humble-cli-windows-amd64.exe
+
     runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v6
-      - uses: taiki-e/upload-rust-binary-action@v1
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          bin: humble-cli
-          tar: unix
-          zip: windows
+          go-version: '1.23'
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go build -ldflags="-s -w" -o ${{ matrix.asset_name }} ./cmd/humble-cli
+
+      - name: Create archive (Unix)
+        if: matrix.goos != 'windows'
+        run: |
+          tar czf ${{ matrix.asset_name }}.tar.gz ${{ matrix.asset_name }}
+
+      - name: Create archive (Windows)
+        if: matrix.goos == 'windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path ${{ matrix.asset_name }} -DestinationPath ${{ matrix.asset_name }}.zip
+
+      - name: Upload release asset (Unix)
+        if: matrix.goos != 'windows'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ matrix.asset_name }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release asset (Windows)
+        if: matrix.goos == 'windows'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ matrix.asset_name }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

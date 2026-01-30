@@ -23,7 +23,7 @@ func HumanizeBytes(bytes uint64) string {
 		exp++
 	}
 
-	return fmt.Sprintf("%.2f %s", float64(bytes)/float64(div), units[exp])
+	return fmt.Sprintf("%.1f %s", float64(bytes)/float64(div), units[exp])
 }
 
 // ByteStringToNumber parses human-readable byte strings like "500MB", "2GiB"
