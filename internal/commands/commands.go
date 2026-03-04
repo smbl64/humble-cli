@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/csv"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -513,26 +514,27 @@ func bulkFormat(fields []string, bundles []models.Bundle) error {
 	printSize := contains(fields, "size")
 	printClaimed := contains(fields, "claimed")
 
+	w := csv.NewWriter(os.Stdout)
 	for _, bundle := range bundles {
-		printVec := []string{}
-
+		var row []string
 		if printKey {
-			printVec = append(printVec, bundle.Gamekey)
+			row = append(row, bundle.Gamekey)
 		}
 		if printName {
-			printVec = append(printVec, bundle.Details.HumanName)
+			row = append(row, bundle.Details.HumanName)
 		}
 		if printSize {
-			printVec = append(printVec, util.HumanizeBytes(bundle.TotalSize()))
+			row = append(row, util.HumanizeBytes(bundle.TotalSize()))
 		}
 		if printClaimed {
-			printVec = append(printVec, bundle.ClaimStatus())
+			row = append(row, bundle.ClaimStatus())
 		}
-
-		fmt.Println(strings.Join(printVec, ","))
+		if err := w.Write(row); err != nil {
+			return err
+		}
 	}
-
-	return nil
+	w.Flush()
+	return w.Error()
 }
 
 // contains checks if a slice contains a string (case-insensitive)
