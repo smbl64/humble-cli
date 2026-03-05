@@ -137,7 +137,7 @@ humble-cli completion powershell | Out-String | Invoke-Expression
 ## 🛠️ Development
 
 ### Prerequisites
-- Go 1.21 or later
+- Go 1.24 or later
 
 ### Building
 ```sh
