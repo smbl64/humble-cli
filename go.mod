@@ -1,6 +1,8 @@
 module github.com/smbl64/humble-cli
 
-go 1.25.5
+go 1.24.0
+
+toolchain go1.25.7
 
 require (
 	github.com/PuerkitoBio/goquery v1.11.0

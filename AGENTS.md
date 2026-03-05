@@ -4,7 +4,7 @@ This document is for automated agents and contributors who will work on the humb
 
 ## Project Overview
 
-**Language:** Go 1.23+
+**Language:** Go 1.24+
 **Purpose:** Command-line tool to interact with Humble Bundle purchases: list bundles, show details, search products, download items, and manage a session key for authentication.
 
 ## Repository Structure
@@ -129,7 +129,7 @@ All dependencies use permissive licenses (MIT/BSD/Apache 2.0):
 
 ### tests.yml
 - Runs on: ubuntu-latest, windows-latest, macos-latest
-- Go versions: 1.23, 1.24, 1.25
+- Go versions: 1.24, 1.25, 1.26
 - Commands: `go test ./...` and `go test -race ./...`
 - Triggers: pushes/PRs to master, changes in cmd/, internal/, or Go files
 
