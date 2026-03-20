@@ -11,10 +11,9 @@ import (
 )
 
 const (
-	retryCount   = 3
-	retryDelay   = 5 * time.Second
-	readTimeout  = 30 * time.Second
-	writeTimeout = 30 * time.Second
+	retryCount              = 3
+	retryDelay              = 5 * time.Second
+	responseHeaderTimeout   = 30 * time.Second
 )
 
 // DownloadFile downloads a file from url to filePath with retry logic and progress bar
@@ -94,9 +93,13 @@ func downloadFileAttempt(url, filePath, title string) error {
 		return nil
 	}
 
-	// Create HTTP client with timeout
+	// Create HTTP client. Use Transport.ResponseHeaderTimeout so the
+	// timeout only covers waiting for response headers, not the
+	// (potentially very long) body transfer of large files.
 	client := &http.Client{
-		Timeout: readTimeout,
+		Transport: &http.Transport{
+			ResponseHeaderTimeout: responseHeaderTimeout,
+		},
 	}
 
 	// Create request with Range header for resume capability
