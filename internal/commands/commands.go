@@ -15,7 +15,7 @@ import (
 	"github.com/smbl64/humble-cli/internal/util"
 )
 
-var validFields = []string{"key", "name", "size", "claimed"}
+var validFields = []string{"key", "name", "size", "claimed", "path"}
 
 // HandleHTTPErrors maps API errors to user-friendly messages
 func HandleHTTPErrors(err error) error {
@@ -513,6 +513,7 @@ func bulkFormat(fields []string, bundles []models.Bundle) error {
 	printName := contains(fields, "name")
 	printSize := contains(fields, "size")
 	printClaimed := contains(fields, "claimed")
+	printPath := contains(fields, "path")
 
 	w := csv.NewWriter(os.Stdout)
 	for _, bundle := range bundles {
@@ -528,6 +529,9 @@ func bulkFormat(fields []string, bundles []models.Bundle) error {
 		}
 		if printClaimed {
 			row = append(row, bundle.ClaimStatus())
+		}
+		if printPath {
+			row = append(row, util.ReplaceInvalidCharsInFilename(bundle.Details.HumanName))
 		}
 		if err := w.Write(row); err != nil {
 			return err

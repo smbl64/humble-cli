@@ -160,7 +160,7 @@ func init() {
 	rootCmd.Version = version
 
 	// list command flags
-	listCmd.Flags().StringSliceP("field", "", []string{}, "Print bundle with the specified fields only (key, name, size, claimed)")
+	listCmd.Flags().StringSliceP("field", "", []string{}, "Print bundle with the specified fields only (key, name, size, claimed, path)")
 	listCmd.Flags().StringP("claimed", "", "all", "Show claimed or unclaimed bundles only (all, yes, no)")
 
 	// list-choices command flags
