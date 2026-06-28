@@ -4,7 +4,7 @@ This document is for automated agents and contributors who will work on the humb
 
 ## Project Overview
 
-**Language:** Go 1.24+
+**Language:** Go 1.25+
 **Purpose:** Command-line tool to interact with Humble Bundle purchases: list bundles, show details, search products, download items, and manage a session key for authentication.
 
 ## Repository Structure
