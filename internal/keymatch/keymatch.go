@@ -16,6 +16,12 @@ func FindKey(keys []string, input string) (string, error) {
 		return input, nil
 	}
 
+	// Reject empty input early: an empty prefix matches every key, which would
+	// surface as a confusing "multiple bundle keys match" error.
+	if input == "" {
+		return "", fmt.Errorf("no bundle key provided")
+	}
+
 	// Case-insensitive prefix matching
 	lowercaseInput := strings.ToLower(input)
 	matches := []string{}
