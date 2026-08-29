@@ -221,8 +221,14 @@ func GetContentLength(url string) (uint64, error) {
 	}
 
 	resp, err := client.Head(url)
-	if err != nil {
-		// Some servers don't support HEAD, try GET with no body read
+	// Some servers don't support HEAD: they either return a network error or
+	// a non-200 status (e.g. 405 Method Not Allowed) as a normal response. In
+	// either case fall back to a GET without reading the body.
+	if err != nil || resp.StatusCode != http.StatusOK {
+		if resp != nil {
+			resp.Body.Close()
+		}
+
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return 0, fmt.Errorf("failed to create request: %w", err)
