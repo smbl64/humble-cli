@@ -58,6 +58,18 @@ func TestFindKey_MultipleMatches(t *testing.T) {
 	}
 }
 
+func TestFindKey_EmptyInput(t *testing.T) {
+	keys := []string{"1aAaBbCcDdEeFfGg", "2bBbCcDdEeFfGgHh"}
+	_, err := FindKey(keys, "")
+
+	if err == nil {
+		t.Fatal("FindKey() expected error for empty input but got none")
+	}
+	if err.Error() != "no bundle key provided" {
+		t.Errorf("FindKey() error = %q; want %q", err.Error(), "no bundle key provided")
+	}
+}
+
 func TestGetMatches(t *testing.T) {
 	keys := []string{"1aAaBbCcDdEeFfGg", "1aXxYyZzAaBbCcDd", "2bBbCcDdEeFfGgHh"}
 	result := GetMatches(keys, "1a")

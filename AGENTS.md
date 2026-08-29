@@ -2,6 +2,10 @@
 
 This document is for automated agents and contributors who will work on the humble-cli repository. It documents the repository layout, developer-facing commands, patterns, and important gotchas discovered in the codebase. Only facts observed in the repository are included.
 
+## Rules for automated agents
+
+- **Never push to `master` unless explicitly asked.** Commit locally and stop; wait for the maintainer to request a push (or to go through a PR). `master` is branch-protected (normal pushes bypass review, but force-pushes are refused), so a direct push is hard to undo — treat it as one-way.
+
 ## Project Overview
 
 **Language:** Go 1.25+
