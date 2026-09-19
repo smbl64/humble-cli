@@ -8,7 +8,7 @@ This document is for automated agents and contributors who will work on the humb
 
 ## Project Overview
 
-**Language:** Go 1.25+
+**Language:** Go 1.26+
 **Purpose:** Command-line tool to interact with Humble Bundle purchases: list bundles, show details, search products, download items, and manage a session key for authentication.
 
 ## Repository Structure
@@ -36,6 +36,7 @@ This document is for automated agents and contributors who will work on the humb
 ## Essential Commands
 
 ### Building
+
 ```bash
 # Debug build
 go build -o humble-cli ./cmd/humble-cli
@@ -48,6 +49,7 @@ make build-all
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
 go test ./...
@@ -61,6 +63,7 @@ go test -race ./...
 ```
 
 ### Development
+
 ```bash
 # Install to $GOPATH/bin
 go install ./cmd/humble-cli
@@ -89,12 +92,14 @@ make clean
 ## Code Patterns and Conventions
 
 ### CLI Framework
+
 - Uses **Cobra** for command-line interface
 - Commands defined in `cmd/humble-cli/main.go`
 - Command implementations in `internal/commands/commands.go`
 - Flags and subcommands follow Cobra conventions
 
 ### Error Handling
+
 - Standard Go error patterns: `if err != nil`
 - Wrap errors with context: `fmt.Errorf("context: %w", err)`
 - User-facing errors mapped in `internal/commands/commands.go`:
@@ -102,21 +107,25 @@ make clean
   - HTTP 404 → "Is the bundle key correct?"
 
 ### Concurrency
+
 - Uses goroutines and channels (no external async framework)
 - Bundle fetching: concurrent batches of 10 keys
 - Download retry: 3 attempts with 5-second delay
 
 ### Time Handling
+
 - Custom `HumbleTime` type in `internal/models/bundle.go`
 - Handles Humble Bundle's datetime format (no timezone)
 - Tries multiple formats: microseconds, seconds, RFC3339
 
 ### JSON Unmarshaling
+
 - Custom `UnmarshalJSON` on `Bundle` type
 - Silently skips malformed products (partial deserialization)
 - Allows graceful handling of API inconsistencies
 
 ### Testing
+
 - Test files alongside source: `*_test.go`
 - Table-driven tests for utilities
 - No mocks/fakes - tests use realistic data structures
@@ -124,6 +133,7 @@ make clean
 ## Dependencies
 
 All dependencies use permissive licenses (MIT/BSD/Apache 2.0):
+
 - `github.com/spf13/cobra` v1.8.0 - CLI framework
 - `github.com/PuerkitoBio/goquery` v1.9.0 - HTML parsing
 - `github.com/schollz/progressbar/v3` v3.14.0 - Progress bars
@@ -132,45 +142,53 @@ All dependencies use permissive licenses (MIT/BSD/Apache 2.0):
 ## CI/CD Workflows
 
 ### tests.yml
+
 - Runs on: ubuntu-latest, windows-latest, macos-latest
-- Go versions: 1.24, 1.25, 1.26
+- Go versions: 1.26, 1.27
 - Commands: `go test ./...` and `go test -race ./...`
 - Triggers: pushes/PRs to master, changes in cmd/, internal/, or Go files
 
 ### release.yml
+
 - Triggers: tags matching `v[0-9]+.*`
 - Builds binaries for: Linux (amd64, arm64), macOS (amd64, arm64), Windows (amd64)
 - Creates GitHub release automatically
 - Uploads `.tar.gz` (Unix) and `.zip` (Windows) archives
 
 ### automerge.yml
+
 - Auto-merges minor dependabot updates
 - Requires `DEPENDABOT_AUTO_MERGE` secret
 
 ## Important Gotchas
 
 ### Session Key Required
+
 - Most commands require `~/.humble-cli-key` to exist
 - Use `humble-cli auth "<KEY>"` to set it up
 - If missing or invalid, commands will fail with clear error messages
 
 ### Time Parsing
+
 - Humble Bundle API returns timestamps without timezone
 - `HumbleTime` type handles this by trying multiple formats
 - Always use `HumbleTime` for bundle/product timestamps
 
 ### Partial JSON Parsing
+
 - Bundle unmarshaling skips malformed products silently
 - This prevents one bad product from breaking the entire bundle
 - Check logs if products seem missing
 
 ### Download Behavior
+
 - Downloads create directories: `bundle-name/product-name/`
 - Filenames are sanitized: invalid chars replaced with `_`
 - Progress bars show current/total bytes
 - Resume supported via HTTP Range headers
 
 ### CSV Output
+
 - `list --field key --field name` produces CSV-like output
 - Valid fields: `key`, `name`, `size`, `claimed`
 - Useful for scripting and automation

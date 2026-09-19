@@ -2,7 +2,7 @@ name: Test with Latest Dependencies
 
 on:
   schedule:
-    - cron: "0 8 * * *"
+    - cron: "0 8 * * 0"
 
 jobs:
   test-latest:
