@@ -125,6 +125,17 @@ func Search(keywords string, matchMode models.MatchMode) error {
 				})
 			}
 		}
+		// The redesigned library lists bundles without their products; match
+		// the bundle title so search still finds something.
+		if len(bundles[i].Products) == 0 {
+			title := models.Product{HumanName: bundles[i].Details.HumanName}
+			if title.NameMatches(kwList, matchMode) {
+				searchResult = append(searchResult, BundleItem{
+					bundle:      &bundles[i],
+					productName: "-",
+				})
+			}
+		}
 	}
 
 	if len(searchResult) == 0 {
@@ -246,7 +257,11 @@ func ShowBundleDetails(bundleKey string) error {
 	fmt.Println()
 	fmt.Println(bundle.Details.HumanName)
 	fmt.Println()
-	fmt.Printf("Purchased    : %s\n", bundle.Created.Time.Format("2006-01-02"))
+	if bundle.Created.IsZero() {
+		fmt.Printf("Purchased    : -\n")
+	} else {
+		fmt.Printf("Purchased    : %s\n", bundle.Created.Time.Format("2006-01-02"))
+	}
 	if bundle.AmountSpent != nil && bundle.Currency != nil {
 		fmt.Printf("Amount spent : %.2f %s\n", *bundle.AmountSpent, *bundle.Currency)
 	}

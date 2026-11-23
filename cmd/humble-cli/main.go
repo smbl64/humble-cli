@@ -28,10 +28,17 @@ var rootCmd = &cobra.Command{
 }
 
 var authCmd = &cobra.Command{
-	Use:   "auth <SESSION-KEY>",
-	Short: "Set the authentication session key",
-	Long: `Set the session key used for authentication with Humble Bundle API.
-See online documentation on how to find the session key from your web browser.`,
+	Use:   "auth <COOKIE>",
+	Short: "Set the authentication cookie",
+	Long: `Set the Humble Bundle session cookie.
+
+Humble moved login to auth.humblebundle.com (Ory Kratos). Log in with a browser,
+open the developer tools, and copy the cookie named ory_session_<suffix>.
+Pass it as name=value, e.g.:
+
+  humble-cli auth 'ory_session_abc123=<value>'
+
+A bare value is still accepted and sent as the legacy _simpleauth_sess cookie.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return config.SetConfig(args[0])
