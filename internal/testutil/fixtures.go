@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/smbl64/humble-cli/internal/models"
+	"github.com/smbl64/humble-cli/v2/internal/models"
 )
 
 // SampleBundle creates a fully populated sample bundle for testing

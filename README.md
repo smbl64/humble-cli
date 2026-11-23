@@ -20,7 +20,7 @@ Download the binaries from the Releases page. Windows, macOS, and Linux are supp
 ### Option 2: Install via Go
 
 ```sh
-go install github.com/smbl64/humble-cli/cmd/humble-cli@latest
+go install github.com/smbl64/humble-cli/v2/cmd/humble-cli@latest
 ```
 
 ### Option 3: Build from Source

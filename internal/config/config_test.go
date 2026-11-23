@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smbl64/humble-cli/internal/testutil"
+	"github.com/smbl64/humble-cli/v2/internal/testutil"
 )
 
 func TestGetConfigFileName(t *testing.T) {

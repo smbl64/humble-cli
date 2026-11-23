@@ -8,12 +8,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/smbl64/humble-cli/internal/api"
-	"github.com/smbl64/humble-cli/internal/config"
-	"github.com/smbl64/humble-cli/internal/download"
-	"github.com/smbl64/humble-cli/internal/keymatch"
-	"github.com/smbl64/humble-cli/internal/models"
-	"github.com/smbl64/humble-cli/internal/util"
+	"github.com/smbl64/humble-cli/v2/internal/api"
+	"github.com/smbl64/humble-cli/v2/internal/config"
+	"github.com/smbl64/humble-cli/v2/internal/download"
+	"github.com/smbl64/humble-cli/v2/internal/keymatch"
+	"github.com/smbl64/humble-cli/v2/internal/models"
+	"github.com/smbl64/humble-cli/v2/internal/util"
 )
 
 var validFields = []string{"key", "name", "size", "claimed", "path"}
