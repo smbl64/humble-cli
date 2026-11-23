@@ -114,3 +114,134 @@ func TestRouterStateTree(t *testing.T) {
 		t.Errorf("tree has no __PAGE__ segment: %s", decoded)
 	}
 }
+
+func TestBundleFromItemUsesSignedTorrentURL(t *testing.T) {
+	item := map[string]any{
+		"title": "DevOps Bundle",
+		"entitlements": map[string]any{
+			"downloads": []any{
+				map[string]any{
+					"type":  "download_drm_free",
+					"id":    "devops",
+					"title": "Go in Action",
+					"signedUrls": map[string]any{
+						"subproductMachineName": "devops",
+						"signedUrls": map[string]any{
+							"devops": map[string]any{
+								"ebook": map[string]any{
+									"goinaction.pdf":         "https://cdn.example/goinaction.pdf?sig=1",
+									"goinaction.pdf.torrent": "https://cdn.example/goinaction.pdf.torrent?sig=1",
+								},
+							},
+						},
+					},
+					"downloads": []any{
+						map[string]any{
+							"key": "ebook",
+							"downloadStruct": []any{
+								map[string]any{
+									"name":     "PDF",
+									"md5":      "abc",
+									"fileSize": float64(1024),
+									"url": map[string]any{
+										"web":        "goinaction.pdf",
+										"bittorrent": "goinaction.pdf.torrent",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	bundle := bundleFromItem("devops-bundle", item, nil)
+	if len(bundle.Products) != 1 || len(bundle.Products[0].Downloads) != 1 {
+		t.Fatalf("products = %#v", bundle.Products)
+	}
+	info := bundle.Products[0].Downloads[0].Items[0]
+	if info.URL.Web != "https://cdn.example/goinaction.pdf?sig=1" {
+		t.Errorf("web url = %q", info.URL.Web)
+	}
+	if info.URL.Bittorrent != "https://cdn.example/goinaction.pdf.torrent?sig=1" {
+		t.Errorf("torrent url = %q, want the signed one", info.URL.Bittorrent)
+	}
+}
+
+func TestBundleFromItemFallsBackToUnsignedTorrentURL(t *testing.T) {
+	item := map[string]any{
+		"entitlements": map[string]any{
+			"downloads": []any{
+				map[string]any{
+					"type": "download_drm_free",
+					"id":   "devops",
+					"downloads": []any{
+						map[string]any{
+							"key": "ebook",
+							"downloadStruct": []any{
+								map[string]any{
+									"name": "PDF",
+									"url": map[string]any{
+										"web":        "goinaction.pdf",
+										"bittorrent": "goinaction.pdf.torrent",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	bundle := bundleFromItem("devops-bundle", item, nil)
+	info := bundle.Products[0].Downloads[0].Items[0]
+	if info.URL.Bittorrent != "https://cdn.humble.com/humblebundle/goinaction.pdf.torrent" {
+		t.Errorf("torrent url = %q", info.URL.Bittorrent)
+	}
+}
+
+func TestSummaryFromItemSkipsEmptyDownloadsAndAddsKeyTitles(t *testing.T) {
+	item := map[string]any{
+		"entitlements": map[string]any{
+			"downloads": []any{
+				map[string]any{"type": "download_drm_free", "title": "No Content", "id": "empty"},
+				map[string]any{
+					"type":  "download_drm_free",
+					"id":    "civ",
+					"title": "Civilization VI",
+					"downloads": []any{
+						map[string]any{
+							"key": "ebook",
+							"downloadStruct": []any{
+								map[string]any{"fileSize": float64(100)},
+							},
+						},
+					},
+				},
+			},
+			"keys": []any{
+				map[string]any{"title": "Civilization VI"},
+				map[string]any{"title": "Steam Only Game"},
+			},
+		},
+	}
+
+	products, keys, size := summaryFromItem(item)
+	want := []string{"Civilization VI", "Steam Only Game"}
+	if len(products) != len(want) {
+		t.Fatalf("products = %#v, want %#v", products, want)
+	}
+	for i := range want {
+		if products[i] != want[i] {
+			t.Errorf("products[%d] = %q, want %q", i, products[i], want[i])
+		}
+	}
+	if len(keys) != 2 || keys[1].HumanName != "Steam Only Game" {
+		t.Errorf("keys = %#v", keys)
+	}
+	if size != 100 {
+		t.Errorf("size = %d, want 100", size)
+	}
+}

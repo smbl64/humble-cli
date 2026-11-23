@@ -148,6 +148,18 @@ func (api *HumbleApi) ListBundles() ([]models.Bundle, error) {
 	return bundles, nil
 }
 
+// libraryItem returns the userLibraryItem of a bundle page's flight payload.
+func libraryItem(html string) map[string]any {
+	for _, row := range parseFlight(extractNextPayload(html)) {
+		if m := findMapWithKey(row, "userLibraryItem"); m != nil {
+			if it, ok := m["userLibraryItem"].(map[string]any); ok {
+				return it
+			}
+		}
+	}
+	return nil
+}
+
 // ReadBundle fetches details for a specific bundle, including the signed
 // download URLs embedded in the bundle page.
 func (api *HumbleApi) ReadBundle(productKey string) (*models.Bundle, error) {
@@ -155,23 +167,16 @@ func (api *HumbleApi) ReadBundle(productKey string) (*models.Bundle, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	payload := extractNextPayload(html)
-	rows := parseFlight(payload)
-
-	var item map[string]any
-	for _, row := range rows {
-		if m := findMapWithKey(row, "userLibraryItem"); m != nil {
-			if it, ok := m["userLibraryItem"].(map[string]any); ok {
-				item = it
-				break
-			}
-		}
-	}
+	item := libraryItem(html)
 	if item == nil {
 		return nil, NewBundleNotFoundError()
 	}
+	return bundleFromItem(productKey, item, api.productSignedURLs), nil
+}
 
+// bundleFromItem builds a bundle from a page's userLibraryItem. signedURLs
+// resolves the signed download URLs of one product when the page lacks them.
+func bundleFromItem(productKey string, item map[string]any, signedURLs func(bundleID, productID string) map[string]any) *models.Bundle {
 	bundle := &models.Bundle{Gamekey: productKey, TpkdDict: map[string]any{}}
 	if title, ok := item["title"].(string); ok {
 		bundle.Details.HumanName = title
@@ -183,7 +188,7 @@ func (api *HumbleApi) ReadBundle(productKey string) (*models.Bundle, error) {
 
 	entitlements, _ := item["entitlements"].(map[string]any)
 	if entitlements == nil {
-		return bundle, nil
+		return bundle
 	}
 
 	// Product keys (steam, origin, ...).
@@ -224,10 +229,10 @@ func (api *HumbleApi) ReadBundle(productKey string) (*models.Bundle, error) {
 
 		productID, _ := download["id"].(string)
 		signedByKey := signedURLsFrom(download["signedUrls"])
-		if len(signedByKey) == 0 {
+		if len(signedByKey) == 0 && signedURLs != nil {
 			// The bundle page only carries signed URLs for some bundles; the
 			// product page always does.
-			signedByKey = api.productSignedURLs(productKey, productID)
+			signedByKey = signedURLs(productKey, productID)
 		}
 
 		productDownload := models.ProductDownload{}
@@ -259,7 +264,15 @@ func (api *HumbleApi) ReadBundle(productKey string) (*models.Bundle, error) {
 						}
 					}
 					if torrent, ok := urlMap["bittorrent"].(string); ok && torrent != "" {
+						// bittorrent holds the file name (e.g. foo.pdf.torrent),
+						// which is also the key of its signed URL; the unsigned
+						// CDN path answers 403.
 						info.URL.Bittorrent = "https://cdn.humble.com/humblebundle/" + torrent
+						if signedByURL != nil {
+							if signed, ok := signedByURL[torrent].(string); ok && signed != "" {
+								info.URL.Bittorrent = signed
+							}
+						}
 					}
 				}
 				productDownload.Items = append(productDownload.Items, info)
@@ -273,7 +286,7 @@ func (api *HumbleApi) ReadBundle(productKey string) (*models.Bundle, error) {
 		bundle.Products = append(bundle.Products, product)
 	}
 
-	return bundle, nil
+	return bundle
 }
 
 // Summary returns the product titles and key states of a bundle without
@@ -283,25 +296,34 @@ func (api *HumbleApi) Summary(bundleID string) ([]string, []models.ProductKey, u
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	var item map[string]any
-	for _, row := range parseFlight(extractNextPayload(html)) {
-		if m := findMapWithKey(row, "userLibraryItem"); m != nil {
-			if it, ok := m["userLibraryItem"].(map[string]any); ok {
-				item = it
-				break
-			}
-		}
-	}
+	item := libraryItem(html)
 	if item == nil {
 		return nil, nil, 0, NewBundleNotFoundError()
 	}
+	products, keys, size := summaryFromItem(item)
+	return products, keys, size, nil
+}
 
+// summaryFromItem lists the product titles and key states of a bundle's
+// userLibraryItem, with the total size of its files.
+func summaryFromItem(item map[string]any) ([]string, []models.ProductKey, uint64) {
 	entitlements, _ := item["entitlements"].(map[string]any)
 	products := make([]string, 0)
 	keys := make([]models.ProductKey, 0)
 	var totalSize uint64
 	if entitlements == nil {
-		return products, keys, 0, nil
+		return products, keys, 0
+	}
+
+	// The downloads and the keys of one product can carry the same title, and
+	// a bundle can hold several keys for one product.
+	seen := make(map[string]bool)
+	addProduct := func(title string) {
+		if title == "" || seen[title] {
+			return
+		}
+		seen[title] = true
+		products = append(products, title)
 	}
 
 	for _, raw := range asSlice(entitlements["downloads"]) {
@@ -312,10 +334,15 @@ func (api *HumbleApi) Summary(bundleID string) ([]string, []models.ProductKey, u
 		if typ, _ := download["type"].(string); typ != "download_drm_free" {
 			continue
 		}
-		if title, ok := download["title"].(string); ok && title != "" {
-			products = append(products, title)
+		files := asSlice(download["downloads"])
+		// Humble ships a file-less "No Content" entry in almost every bundle.
+		if len(files) == 0 {
+			continue
 		}
-		for _, rawFile := range asSlice(download["downloads"]) {
+		if title, ok := download["title"].(string); ok {
+			addProduct(title)
+		}
+		for _, rawFile := range files {
 			platformDownload, ok := rawFile.(map[string]any)
 			if !ok {
 				continue
@@ -339,6 +366,9 @@ func (api *HumbleApi) Summary(bundleID string) ([]string, []models.ProductKey, u
 		}
 		pk := models.ProductKey{}
 		pk.HumanName, _ = key["title"].(string)
+		// Key-only products (Steam keys without downloads) are searchable
+		// through their key title.
+		addProduct(pk.HumanName)
 		if rd, ok := key["redemptionData"].(map[string]any); ok {
 			if formatted, ok := rd["keyFormatted"].(string); ok && formatted != "" {
 				pk.Redeemed = true
@@ -347,7 +377,7 @@ func (api *HumbleApi) Summary(bundleID string) ([]string, []models.ProductKey, u
 		keys = append(keys, pk)
 	}
 
-	return products, keys, totalSize, nil
+	return products, keys, totalSize
 }
 
 // ListChoices returns the games of a Humble Choice month ("home" for the
