@@ -72,9 +72,9 @@ Usage:
   humble-cli [command]
 
 Available Commands:
-  auth          Set the authentication session key
+  auth          Set the authentication cookie
   bulk-download Download items from multiple bundles
-  completion    Generate shell completions
+  completion    Generate the autocompletion script for the specified shell
   details       Print details of a certain bundle
   download      Selectively download items from a bundle
   help          Help about any command
@@ -161,7 +161,7 @@ humble-cli completion powershell | Out-String | Invoke-Expression
 ## 🛠️ Development
 
 ### Prerequisites
-- Go 1.25 or later
+- Go 1.26 or later
 
 ### Building
 ```sh
