@@ -55,11 +55,12 @@ A bare value is still accepted and sent as `_simpleauth_sess`.
 > Server action ids change with every Humble deployment; they are looked up in
 > the page's JavaScript chunks at runtime.
 >
-> Consequences: `list` without `--claimed` shows bundle id, title and type
-> only (sizes need `details`); `search` and `list --claimed` fetch a summary of
-> every bundle first (one request each, ~7 s for 86 bundles). `list-choices` is
-> unavailable because the new membership pages no longer expose the month's
-> data.
+> Consequences: the library page carries only id and title, so `list` (table
+> and `--claimed`/size fields) and `search` fetch a one-request summary per
+> bundle first (~7-9 s for 86 bundles); `list --field key` stays a single
+> request. `list-choices` reads the current month's products from the
+> membership page payload; the reveal state per key is shown on
+> `/home/keys`, not in that payload.
 
 After that you will have access to the following sub-commands:
 

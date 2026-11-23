@@ -57,42 +57,36 @@ func ListHumbleChoices(period models.ChoicePeriod) error {
 		periodStr = "home"
 	}
 
-	choices, err := apiClient.ReadBundleChoices(periodStr)
+	titles, err := apiClient.ListChoices(periodStr)
 	if err != nil {
 		return HandleHTTPErrors(err)
 	}
 
 	fmt.Println()
-	fmt.Println(choices.Options.Title)
+	fmt.Printf("Humble Choice (%s)\n", periodStr)
 	fmt.Println()
 
-	table := util.NewTable([]string{"#", "Title", "Redeemed"})
-	counter := 1
-	allRedeemed := true
+	table := util.NewTable([]string{"#", "Title"})
+	for i, title := range titles {
+		table.AddRow([]string{fmt.Sprintf("%d", i+1), title})
+	}
+	table.Render()
 
-	for _, gameData := range choices.Options.Data.GameData {
-		for _, tpkd := range gameData.Tpkds {
-			table.AddRow([]string{
-				fmt.Sprintf("%d", counter),
-				tpkd.HumanName,
-				tpkd.ClaimStatus(),
-			})
-			counter++
+	fmt.Println("Keys and reveal state: https://www.humblebundle.com/home/keys")
 
-			if tpkd.ClaimStatus() == "No" {
-				allRedeemed = false
+	return nil
+}
+
+// hasAnyField reports whether one of the names is in fields.
+func hasAnyField(fields []string, names ...string) bool {
+	for _, field := range fields {
+		for _, name := range names {
+			if field == name {
+				return true
 			}
 		}
 	}
-
-	table.Render()
-
-	if !allRedeemed {
-		url := "https://www.humblebundle.com/membership/home"
-		fmt.Printf("Visit %s to redeem your keys.\n", url)
-	}
-
-	return nil
+	return false
 }
 
 // enrichBundles fills product names and key states for bundles that the
@@ -107,10 +101,11 @@ func enrichBundles(client *api.HumbleApi, bundles []models.Bundle, needProducts,
 		go func() {
 			defer wg.Done()
 			for i := range indexes {
-				products, keys, err := client.Summary(bundles[i].Gamekey)
+				products, keys, size, err := client.Summary(bundles[i].Gamekey)
 				if err != nil {
 					continue
 				}
+				bundles[i].SizeBytes = size
 				if needProducts {
 					for _, name := range products {
 						bundles[i].Products = append(bundles[i].Products, models.Product{HumanName: name})
@@ -230,9 +225,14 @@ func ListBundles(fields []string, claimedFilter string) error {
 		return HandleHTTPErrors(err)
 	}
 
+	// The library page has neither sizes nor key states; fetch one summary per
+	// bundle when the output needs them.
+	if claimedFilter != "all" || len(fields) == 0 || hasAnyField(fields, "size", "claimed") {
+		enrichBundles(apiClient, bundles, false, true)
+	}
+
 	// Filter by claimed status
 	if claimedFilter != "all" {
-		enrichBundles(apiClient, bundles, false, true)
 		claimed := claimedFilter == "yes"
 		filtered := []models.Bundle{}
 		for _, b := range bundles {

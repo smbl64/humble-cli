@@ -278,10 +278,10 @@ func (api *HumbleApi) ReadBundle(productKey string) (*models.Bundle, error) {
 
 // Summary returns the product titles and key states of a bundle without
 // resolving download URLs. Used by search and the claimed filter.
-func (api *HumbleApi) Summary(bundleID string) ([]string, []models.ProductKey, error) {
+func (api *HumbleApi) Summary(bundleID string) ([]string, []models.ProductKey, uint64, error) {
 	html, err := api.get(libraryURL+"/"+bundleID, false)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
 	var item map[string]any
 	for _, row := range parseFlight(extractNextPayload(html)) {
@@ -293,14 +293,15 @@ func (api *HumbleApi) Summary(bundleID string) ([]string, []models.ProductKey, e
 		}
 	}
 	if item == nil {
-		return nil, nil, NewBundleNotFoundError()
+		return nil, nil, 0, NewBundleNotFoundError()
 	}
 
 	entitlements, _ := item["entitlements"].(map[string]any)
 	products := make([]string, 0)
 	keys := make([]models.ProductKey, 0)
+	var totalSize uint64
 	if entitlements == nil {
-		return products, keys, nil
+		return products, keys, 0, nil
 	}
 
 	for _, raw := range asSlice(entitlements["downloads"]) {
@@ -313,6 +314,21 @@ func (api *HumbleApi) Summary(bundleID string) ([]string, []models.ProductKey, e
 		}
 		if title, ok := download["title"].(string); ok && title != "" {
 			products = append(products, title)
+		}
+		for _, rawFile := range asSlice(download["downloads"]) {
+			platformDownload, ok := rawFile.(map[string]any)
+			if !ok {
+				continue
+			}
+			for _, rawStruct := range asSlice(platformDownload["downloadStruct"]) {
+				entry, ok := rawStruct.(map[string]any)
+				if !ok {
+					continue
+				}
+				if size, ok := entry["fileSize"].(float64); ok && size > 0 {
+					totalSize += uint64(size)
+				}
+			}
 		}
 	}
 
@@ -331,7 +347,39 @@ func (api *HumbleApi) Summary(bundleID string) ([]string, []models.ProductKey, e
 		keys = append(keys, pk)
 	}
 
-	return products, keys, nil
+	return products, keys, totalSize, nil
+}
+
+// ListChoices returns the games of a Humble Choice month ("home" for the
+// current month). The redesigned membership page carries them in its flight
+// payload as subscriptionProducts.
+func (api *HumbleApi) ListChoices(period string) ([]string, error) {
+	url := baseURL + "/membership/home"
+	if period != "" && period != "home" {
+		url = baseURL + "/membership/" + period
+	}
+	html, err := api.get(url, false)
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range parseFlight(extractNextPayload(html)) {
+		container := findMapWithKey(row, "subscriptionProducts")
+		if container == nil {
+			continue
+		}
+		titles := make([]string, 0)
+		for _, raw := range asSlice(container["subscriptionProducts"]) {
+			product, ok := raw.(map[string]any)
+			if !ok {
+				continue
+			}
+			if title, ok := product["title"].(string); ok && title != "" {
+				titles = append(titles, title)
+			}
+		}
+		return titles, nil
+	}
+	return nil, NewBundleNotFoundError()
 }
 
 // ReadBundleChoices is not supported any more: the redesigned membership pages
