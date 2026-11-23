@@ -59,7 +59,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          go build -ldflags="-s -w" -o ${{ matrix.asset_name }} ./cmd/humble-cli
+          go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o ${{ matrix.asset_name }} ./cmd/humble-cli
 
       - name: Create archive (Unix)
         if: matrix.goos != 'windows'
