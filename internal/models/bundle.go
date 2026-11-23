@@ -49,14 +49,17 @@ type GameKey struct {
 
 // Bundle represents a purchased Humble Bundle
 type Bundle struct {
-	Gamekey     string                 `json:"gamekey"`
-	Created     HumbleTime             `json:"created"`
-	Claimed     bool                   `json:"claimed"`
-	TpkdDict    map[string]any         `json:"tpkd_dict"`
-	Details     BundleDetails          `json:"product"`
-	Products    []Product              `json:"-"` // Custom unmarshal
-	AmountSpent *float64               `json:"amount_spent,omitempty"`
-	Currency    *string                `json:"currency,omitempty"`
+	Gamekey     string         `json:"gamekey"`
+	Created     HumbleTime     `json:"created"`
+	Claimed     bool           `json:"claimed"`
+	TpkdDict    map[string]any `json:"tpkd_dict"`
+	Details     BundleDetails  `json:"product"`
+	Products    []Product      `json:"-"` // Custom unmarshal
+	AmountSpent *float64       `json:"amount_spent,omitempty"`
+	Currency    *string        `json:"currency,omitempty"`
+	// SizeBytes is set when the size came from a bundle summary instead of
+	// parsed products.
+	SizeBytes uint64 `json:"-"`
 }
 
 // UnmarshalJSON implements custom JSON unmarshaling to skip malformed products
@@ -88,6 +91,9 @@ func (b *Bundle) UnmarshalJSON(data []byte) error {
 
 // TotalSize returns the sum of all product sizes
 func (b *Bundle) TotalSize() uint64 {
+	if b.SizeBytes > 0 {
+		return b.SizeBytes
+	}
 	var total uint64
 	for _, p := range b.Products {
 		total += p.TotalSize()
@@ -172,10 +178,10 @@ type BundleDetails struct {
 
 // Product represents a product within a bundle
 type Product struct {
-	MachineName        string            `json:"machine_name"`
-	HumanName          string            `json:"human_name"`
-	ProductDetailsURL  string            `json:"url"`
-	Downloads          []ProductDownload `json:"downloads"`
+	MachineName       string            `json:"machine_name"`
+	HumanName         string            `json:"human_name"`
+	ProductDetailsURL string            `json:"url"`
+	Downloads         []ProductDownload `json:"downloads"`
 }
 
 // TotalSize returns the sum of all download sizes for this product

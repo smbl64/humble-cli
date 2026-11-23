@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/smbl64/humble-cli/internal/api"
 	"github.com/smbl64/humble-cli/internal/config"
@@ -56,42 +57,80 @@ func ListHumbleChoices(period models.ChoicePeriod) error {
 		periodStr = "home"
 	}
 
-	choices, err := apiClient.ReadBundleChoices(periodStr)
+	titles, err := apiClient.ListChoices(periodStr)
 	if err != nil {
 		return HandleHTTPErrors(err)
 	}
 
 	fmt.Println()
-	fmt.Println(choices.Options.Title)
+	fmt.Printf("Humble Choice (%s)\n", periodStr)
 	fmt.Println()
 
-	table := util.NewTable([]string{"#", "Title", "Redeemed"})
-	counter := 1
-	allRedeemed := true
+	table := util.NewTable([]string{"#", "Title"})
+	for i, title := range titles {
+		table.AddRow([]string{fmt.Sprintf("%d", i+1), title})
+	}
+	table.Render()
 
-	for _, gameData := range choices.Options.Data.GameData {
-		for _, tpkd := range gameData.Tpkds {
-			table.AddRow([]string{
-				fmt.Sprintf("%d", counter),
-				tpkd.HumanName,
-				tpkd.ClaimStatus(),
-			})
-			counter++
+	fmt.Println("Keys and reveal state: https://www.humblebundle.com/home/keys")
 
-			if tpkd.ClaimStatus() == "No" {
-				allRedeemed = false
+	return nil
+}
+
+// hasAnyField reports whether one of the names is in fields.
+func hasAnyField(fields []string, names ...string) bool {
+	for _, field := range fields {
+		for _, name := range names {
+			if field == name {
+				return true
 			}
 		}
 	}
+	return false
+}
 
-	table.Render()
+// enrichBundles fills product names and key states for bundles that the
+// library page lists without them. Each bundle costs one page request.
+func enrichBundles(client *api.HumbleApi, bundles []models.Bundle, needProducts, needKeys bool) {
+	const workers = 8
+	indexes := make(chan int)
+	var wg sync.WaitGroup
 
-	if !allRedeemed {
-		url := "https://www.humblebundle.com/membership/home"
-		fmt.Printf("Visit %s to redeem your keys.\n", url)
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range indexes {
+				products, keys, size, err := client.Summary(bundles[i].Gamekey)
+				if err != nil {
+					continue
+				}
+				bundles[i].SizeBytes = size
+				if needProducts {
+					for _, name := range products {
+						bundles[i].Products = append(bundles[i].Products, models.Product{HumanName: name})
+					}
+				}
+				if needKeys && len(keys) > 0 {
+					tpks := make([]any, 0, len(keys))
+					for _, key := range keys {
+						tpk := map[string]any{"human_name": key.HumanName}
+						if key.Redeemed {
+							tpk["redeemed_key_val"] = "yes"
+						}
+						tpks = append(tpks, tpk)
+					}
+					bundles[i].TpkdDict = map[string]any{"all_tpks": tpks}
+				}
+			}
+		}()
 	}
 
-	return nil
+	for i := range bundles {
+		indexes <- i
+	}
+	close(indexes)
+	wg.Wait()
 }
 
 // Search searches for products matching keywords
@@ -106,6 +145,9 @@ func Search(keywords string, matchMode models.MatchMode) error {
 	if err != nil {
 		return HandleHTTPErrors(err)
 	}
+
+	// The library page carries no product names; fetch them for search.
+	enrichBundles(apiClient, bundles, true, false)
 
 	lowercaseKeywords := strings.ToLower(keywords)
 	kwList := strings.Fields(lowercaseKeywords)
@@ -122,6 +164,17 @@ func Search(keywords string, matchMode models.MatchMode) error {
 				searchResult = append(searchResult, BundleItem{
 					bundle:      &bundles[i],
 					productName: bundles[i].Products[j].HumanName,
+				})
+			}
+		}
+		// The redesigned library lists bundles without their products; match
+		// the bundle title so search still finds something.
+		if len(bundles[i].Products) == 0 {
+			title := models.Product{HumanName: bundles[i].Details.HumanName}
+			if title.NameMatches(kwList, matchMode) {
+				searchResult = append(searchResult, BundleItem{
+					bundle:      &bundles[i],
+					productName: "-",
 				})
 			}
 		}
@@ -170,6 +223,12 @@ func ListBundles(fields []string, claimedFilter string) error {
 	bundles, err := apiClient.ListBundles()
 	if err != nil {
 		return HandleHTTPErrors(err)
+	}
+
+	// The library page has neither sizes nor key states; fetch one summary per
+	// bundle when the output needs them.
+	if claimedFilter != "all" || len(fields) == 0 || hasAnyField(fields, "size", "claimed") {
+		enrichBundles(apiClient, bundles, false, true)
 	}
 
 	// Filter by claimed status
@@ -246,7 +305,11 @@ func ShowBundleDetails(bundleKey string) error {
 	fmt.Println()
 	fmt.Println(bundle.Details.HumanName)
 	fmt.Println()
-	fmt.Printf("Purchased    : %s\n", bundle.Created.Time.Format("2006-01-02"))
+	if bundle.Created.IsZero() {
+		fmt.Printf("Purchased    : -\n")
+	} else {
+		fmt.Printf("Purchased    : %s\n", bundle.Created.Time.Format("2006-01-02"))
+	}
 	if bundle.AmountSpent != nil && bundle.Currency != nil {
 		fmt.Printf("Amount spent : %.2f %s\n", *bundle.AmountSpent, *bundle.Currency)
 	}

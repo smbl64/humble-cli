@@ -32,11 +32,35 @@ go build -o humble-cli ./cmd/humble-cli
 
 ## 🚀 Usage
 
-To start, go to the [Humble Bundle website][hb-site] and log in. Then find the cookie value for `_simpleauth_sess`. This is required to interact with the Humble Bundle API.
+To start, go to the [Humble Bundle website][hb-site] and log in. Humble moved
+login to `auth.humblebundle.com` (Ory Kratos), so the session cookie is now
+named `ory_session_<suffix>` (no longer `_simpleauth_sess`). It is an HttpOnly
+cookie, so read it from the browser's developer tools rather than from
+`document.cookie`.
 
-See this guide on how to find the cookie value for your browser: [Chrome][guide-chrome], [Firefox][guide-firefox], [Safari][guide-safari].
+See this guide on how to find a cookie value in your browser: [Chrome][guide-chrome], [Firefox][guide-firefox], [Safari][guide-safari].
 
-Use `humble-cli auth "<YOUR SESSION KEY>"` to store the authentication key locally for other subcommands.
+Store the cookie as `name=value`:
+
+```sh
+humble-cli auth 'ory_session_abc123=<value>'
+```
+
+A bare value is still accepted and sent as `_simpleauth_sess`.
+
+> Humble removed its JSON API (`/api/v1/user/order`, `/api/v1/orders`,
+> `/api/v1/order`) in November 2026. This version reads the library and bundle
+> pages instead, and calls the site's `getSignedUrlsForEntitlements` server
+> action for download URLs whose signed form is not already in the page.
+> Server action ids change with every Humble deployment; they are looked up in
+> the page's JavaScript chunks at runtime.
+>
+> Consequences: the library page carries only id and title, so `list` (table
+> and `--claimed`/size fields) and `search` fetch a one-request summary per
+> bundle first (~7-9 s for 86 bundles); `list --field key` stays a single
+> request. `list-choices` reads the current month's products from the
+> membership page payload; the reveal state per key is shown on
+> `/home/keys`, not in that payload.
 
 After that you will have access to the following sub-commands:
 
