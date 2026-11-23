@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/smbl64/humble-cli/internal/api"
 	"github.com/smbl64/humble-cli/internal/config"
@@ -94,6 +95,49 @@ func ListHumbleChoices(period models.ChoicePeriod) error {
 	return nil
 }
 
+// enrichBundles fills product names and key states for bundles that the
+// library page lists without them. Each bundle costs one page request.
+func enrichBundles(client *api.HumbleApi, bundles []models.Bundle, needProducts, needKeys bool) {
+	const workers = 8
+	indexes := make(chan int)
+	var wg sync.WaitGroup
+
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range indexes {
+				products, keys, err := client.Summary(bundles[i].Gamekey)
+				if err != nil {
+					continue
+				}
+				if needProducts {
+					for _, name := range products {
+						bundles[i].Products = append(bundles[i].Products, models.Product{HumanName: name})
+					}
+				}
+				if needKeys && len(keys) > 0 {
+					tpks := make([]any, 0, len(keys))
+					for _, key := range keys {
+						tpk := map[string]any{"human_name": key.HumanName}
+						if key.Redeemed {
+							tpk["redeemed_key_val"] = "yes"
+						}
+						tpks = append(tpks, tpk)
+					}
+					bundles[i].TpkdDict = map[string]any{"all_tpks": tpks}
+				}
+			}
+		}()
+	}
+
+	for i := range bundles {
+		indexes <- i
+	}
+	close(indexes)
+	wg.Wait()
+}
+
 // Search searches for products matching keywords
 func Search(keywords string, matchMode models.MatchMode) error {
 	sessionKey, err := config.GetConfig()
@@ -106,6 +150,9 @@ func Search(keywords string, matchMode models.MatchMode) error {
 	if err != nil {
 		return HandleHTTPErrors(err)
 	}
+
+	// The library page carries no product names; fetch them for search.
+	enrichBundles(apiClient, bundles, true, false)
 
 	lowercaseKeywords := strings.ToLower(keywords)
 	kwList := strings.Fields(lowercaseKeywords)
@@ -185,6 +232,7 @@ func ListBundles(fields []string, claimedFilter string) error {
 
 	// Filter by claimed status
 	if claimedFilter != "all" {
+		enrichBundles(apiClient, bundles, false, true)
 		claimed := claimedFilter == "yes"
 		filtered := []models.Bundle{}
 		for _, b := range bundles {

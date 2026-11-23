@@ -276,6 +276,64 @@ func (api *HumbleApi) ReadBundle(productKey string) (*models.Bundle, error) {
 	return bundle, nil
 }
 
+// Summary returns the product titles and key states of a bundle without
+// resolving download URLs. Used by search and the claimed filter.
+func (api *HumbleApi) Summary(bundleID string) ([]string, []models.ProductKey, error) {
+	html, err := api.get(libraryURL+"/"+bundleID, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	var item map[string]any
+	for _, row := range parseFlight(extractNextPayload(html)) {
+		if m := findMapWithKey(row, "userLibraryItem"); m != nil {
+			if it, ok := m["userLibraryItem"].(map[string]any); ok {
+				item = it
+				break
+			}
+		}
+	}
+	if item == nil {
+		return nil, nil, NewBundleNotFoundError()
+	}
+
+	entitlements, _ := item["entitlements"].(map[string]any)
+	products := make([]string, 0)
+	keys := make([]models.ProductKey, 0)
+	if entitlements == nil {
+		return products, keys, nil
+	}
+
+	for _, raw := range asSlice(entitlements["downloads"]) {
+		download, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		if typ, _ := download["type"].(string); typ != "download_drm_free" {
+			continue
+		}
+		if title, ok := download["title"].(string); ok && title != "" {
+			products = append(products, title)
+		}
+	}
+
+	for _, raw := range asSlice(entitlements["keys"]) {
+		key, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		pk := models.ProductKey{}
+		pk.HumanName, _ = key["title"].(string)
+		if rd, ok := key["redemptionData"].(map[string]any); ok {
+			if formatted, ok := rd["keyFormatted"].(string); ok && formatted != "" {
+				pk.Redeemed = true
+			}
+		}
+		keys = append(keys, pk)
+	}
+
+	return products, keys, nil
+}
+
 // ReadBundleChoices is not supported any more: the redesigned membership pages
 // no longer carry the month's data and the old webpack payload is gone.
 func (api *HumbleApi) ReadBundleChoices(when string) (*models.HumbleChoice, error) {
