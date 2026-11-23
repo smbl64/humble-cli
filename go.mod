@@ -1,4 +1,4 @@
-module github.com/smbl64/humble-cli
+module github.com/smbl64/humble-cli/v2
 
 go 1.26.0
 

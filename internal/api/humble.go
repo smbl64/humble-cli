@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/smbl64/humble-cli/internal/models"
+	"github.com/smbl64/humble-cli/v2/internal/models"
 )
 
 const (
